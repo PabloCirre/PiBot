@@ -6,7 +6,7 @@ The project has been successfully completed and renamed to **PIBOT**!
 
 ### 1. Global Rebranding: PIBOT
 
-- The entire suite has been renamed from "MoltBolt/Phoenix" to **PIBOT**.
+- The entire suite has been renamed from "MoltBolt/PiBot" to **PIBOT**.
 - **Binaries:** `PiBotTray.exe`, `PiBotControlCenter.exe`, `PiBotInstaller.exe`.
 - **Naming Convention:** New bots are launched as `pibot-*`.
 - **Linux Services:** Migrated to `pibot-vnc.service` and `pibot-novnc.service`.
@@ -24,7 +24,7 @@ The project has been successfully completed and renamed to **PIBOT**!
 
 ## 🚀 How to Get Started
 
-1. Run the new **`PiBotInstaller.exe`** in `c:\Users\MASTER\Desktop\PhoenixBOT\`.
+1. Run the new **`PiBotInstaller.exe`** in `c:\Users\MASTER\Desktop\PiBot\`.
 2. Launch the **`PIBOT Control Center`** from your desktop.
 3. Deploy your first **PIBOT** and monitor the progress in real-time!
 

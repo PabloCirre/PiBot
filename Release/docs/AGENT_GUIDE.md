@@ -2,7 +2,7 @@
 
 ## 1. Project Architecture 🏗️
 
-The PhoenixBOT ecosystem is designed to be a **Hybrid Orchestration Platform**. It uses a lightweight Windows C# client (`PiBotControlCenter.exe`) to command a fleet of heavy-duty Linux Virtual Machines (`Multipass`).
+The PiBot ecosystem is designed to be a **Hybrid Orchestration Platform**. It uses a lightweight Windows C# client (`PiBotControlCenter.exe`) to command a fleet of heavy-duty Linux Virtual Machines (`Multipass`).
 
 ### Core Components
 
@@ -15,7 +15,7 @@ The PhoenixBOT ecosystem is designed to be a **Hybrid Orchestration Platform**. 
 A clean workspace is a happy workspace. Follow this structure strictly:
 
 ```
-PhoenixBOT/
+PiBot/
 ├── src/                  # Source Code (The Brain)
 │   ├── PiBotControlCenter.cs
 │   └── PiBotInstaller.cs

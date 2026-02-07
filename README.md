@@ -4,33 +4,31 @@
 [![Version](https://img.shields.io/badge/Version-0.1--Alpha-blue.svg)](https://github.com/YourRepo/PiBot/releases)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-lightgrey.svg)](https://github.com/YourRepo/PiBot)
 
-> **The ultimate management ecosystem for autonomous agents, cloudbots, and virtualized neural units.**
+> **PiBot (PiBot Interactive Box) - The ultimate virtualization layer for [OpenClaw](https://docs.openclaw.ai/) agents.**
 
-PiBot Pro is a high-performance orchestration layer designed to deploy, manage, and scale autonomous agents (like **CloudBots**, **Moltbolt**, and **OpenClaw**) within secure, isolated virtual environments.
-
-By leveraging **Multipass** virtualization, PiBot ensures that your agents run in a consistent, sandboxed Linux environment with official toolsets (Google Chrome, noVNC, and systemd persistence) ready out of the box.
+PiBot is a high-performance orchestration ecosystem designed to deploy and manage isolated virtual instances of **OpenClaw**. Each unit (PiBot) provides a secure, independent sandbox with its own dedicated internet connection and graphical interface, allowing for mass-scale automation without session conflicts.
 
 ---
 
 ## 🚀 Key Features
 
-- **Genesis Orchestration:** Deploy standard or specialized units with custom RAM and Disk allocation in seconds.
-- **Secure Virtualization:** Each agent lives in its own isolated Ubuntu instance. No more dependency hell or security leaks.
-- **Neural Link (noVNC):** Access your agents' desktop visually through any web browser without installing additional clients.
-- **Persistent Core:** Auto-restart services ensure your agents' visual streams and tools stay online through unit restarts.
-- **Official Tooling:** Every unit comes pre-shipped with **Google Chrome**, `wget`, `curl`, and a native XFCE desktop environment.
-- **Telemetry Console:** Real-time monitoring of all neural births and system operations.
+- **OpenClaw Optimized:** Every instance is pre-configured to run [OpenClaw](https://docs.openclaw.ai/) with dedicated resources.
+- **Genesis Orchestration:** Deploy specialized units with custom RAM and Disk allocation in seconds.
+- **Total Independence:** Each agent has its own unique IP and internet uplink.
+- **Neural Link (noVNC):** Access your agents' desktop visually via any web browser.
+- **Persistent Core:** Auto-restart services ensure your units stay online through host reboots.
+- **Official Tooling:** Shipped with **Google Chrome**, `xdotool`, and a high-resolution XFCE desktop.
 
 ---
 
-## 🛠️ Why use Virtualized Agents?
+## 🛠️ Why PiBot for OpenClaw?
 
-Using PiBot with virtualization is superior to native execution for several reasons:
+Using PiBot virtualization is the superior way to scale OpenClaw agents:
 
-1. **Security & Isolation:** Agents are sandboxed. If an agent (like a **CloudBot**) executes untrusted code, it stays within the VM, protecting your host OS.
-2. **Resource Throttling:** Prevent an agent from consuming 100% of your host's RAM. Define the "Metabolic DNA" (Resources) at birth.
-3. **Pure Environment:** No need to install Linux tools on Windows. PiBot handles the translation layer between the Windows control center and the Linux agents.
-4. **Instant Scalability:** Need 5 agents? Launch 5 Genesis units. Need to wipe one? Use the **Terminate (💀)** command.
+1. **Massive Scaling:** Launch dozens of independent OpenClaw instances on a single host.
+2. **Dedicated Environments:** No conflicting dependencies; each bot is a clean Ubuntu instance.
+3. **Advanced Automation:** Integrated with tools for screen scraping and mouse/keyboard emulation.
+4. **Instant Recovery:** If an instance fails, simply **Terminate (💀)** and generate a new one from the PiBot Genesis.
 
 ---
 
@@ -38,27 +36,17 @@ Using PiBot with virtualization is superior to native execution for several reas
 
 ### 💿 Quick Start
 
-1. **Download the latest release:** [PiBot_v0.1_Release.zip](https://github.com/YourRepo/PiBot/releases/download/v0.1/PiBot_v0.1_Alpha.zip) (Mirror)
-2. **Prerequisite:** Install [Multipass](https://multipass.run/) (Required for the virtualization engine).
+1. **Download:** [PiBot_v0.1_Alpha.zip](https://github.com/YourRepo/PiBot/releases)
+2. **Requirement:** Install [Multipass](https://multipass.run/) for the virtualization engine.
 3. **Run:** Open `PiBotControlCenter.exe`.
-4. **Launch:** Click **+ GENERATE PIBOT** and watch your first agent come to life.
-
----
-
-## 📂 Project Structure
-
-- `PiBotControlCenter.exe`: The main C# WPF application (Windows-side).
-- `Data/cloud-init.yaml`: The genetic blueprint for all Linux agents.
-- `web/`: The frontend interface (HTML5/Tailwind/JS).
-- `docs/`: Technical specifications for the Linux Base and development guides.
+4. **Genesis:** Click **+ GENERATE PIBOT** to birth your first OpenClaw hub.
 
 ---
 
 ## 📜 License & Acknowledgments
 
-Distributed under the **MIT License**. Created by the PiBot Team for the community.
-Special thanks to the developers of **Moltbolt**, **OpenClaw**, and the **Multipass** team.
+Distributed under the **MIT License**. Created by the PiBot Team.
+Special thanks to the **OpenClaw** developers for their revolutionary work.
 
 ---
-
-*“Giving life to silicon, one unit at a time.”* 🦾🤖🌐
+*“PiBot: PiBot Interactive Box - Empowering the OpenClaw Ecosystem.”* 🦾🤖🌐

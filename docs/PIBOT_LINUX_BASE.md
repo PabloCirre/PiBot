@@ -1,39 +1,33 @@
-# PiBot Linux System Base (V4.1)
+# PiBot Linux System Base (V4.2) - OpenClaw Edition
 
-This document defines the standard software and configuration stack for all PiBot units. Every new birth follows this specification to ensure compatibility and tool availability.
+This document defines the standard software and configuration stack for all PiBot units, optimized for running **OpenClaw** agents.
 
 ## 🖥️ Operating System
 
 - **Distribution:** Ubuntu 24.04 LTS (Noble Numbat)
-- **Kernel:** Latest LTS via Multipass
-- **User:** `pibot` (Sudoer, no password required)
-- **Password:** `pibot`
+- **User:** `pibot` (Sudoer, Password: `pibot`)
+- **Desktop:** XFCE4 (High Performance / Low Latency)
 
-## 🎨 Desktop Environment
+## 🎮 OpenClaw Integration
 
-- **XFCE4:** Lightweight desktop environment chosen for performance.
-- **XFCE4-Goodies:** Standard utility pack.
-- **Resolution:** 1440x900 (Native High Definition).
+PiBot is the reference hardware virtualization layer for **[OpenClaw](https://docs.openclaw.ai/)** instances.
+
+- **Isolation:** Each PiBot instance runs a dedicated, sandboxed OpenClaw environment.
+- **Independence:** Every agent has its own network stack and unique IP address, ensuring clean sessions for cloud-based automation.
+- **Prerequisites:** All necessary libraries (`libsdl2`, `libvulkan1`, etc.) are pre-configured in the genesis DNA.
 
 ## 📡 Remote Access & Display
 
-- **VNC Server:** TightVNC Server running on `:1` (Port 5901).
-- **noVNC Proxy:** Web-based VNC client running on port **6080**.
-- **Persistence:** Managed via `systemd` services (`pibot-vnc.service` and `pibot-novnc.service`) to ensure connection survives unit restarts.
+- **Protocol:** VNC Server + noVNC Web Proxy (Port **6080**).
+- **Persistence:** Systemd services ensure the visual stream remains active after unit reboots.
 
 ## 🌐 Pre-installed Software
 
-- **Web Browser:** Google Chrome (Stable) - Default browser for all tasks.
-- **Utilities:** `wget`, `curl`, `ca-certificates`, `net-tools`, `dbus-x11`.
-- **Drivers:** `libu2f-udev`, `libvulkan1`, `fonts-liberation`.
+- **Web Browser:** Google Chrome (Stable) - Default for web-based automation.
+- **OpenClaw Runtime:** Pre-installed and connected to the internal internet uplink.
+- **Utilities:** `xdotool`, `scrot`, `curl`, `wget`.
 
 ## ⚙️ Network Configuration
 
-- **DNS Servers:**
-  - 8.8.8.8 (Google)
-  - 1.1.1.1 (Cloudflare)
-- **Stability:** Custom `resolv.conf` management to prevent connection drops during heavy processing.
-
-## 🔄 Update Policy
-
-All units perform a `package_update` upon genesis to ensure the latest security patches are applied. Chrome is installed from the official Google repository.
+- **DNS:** 8.8.8.8 & 1.1.1.1 for ultra-stable connectivity.
+- **OpenClaw Ready:** Ports and firewall rules are pre-opened for external agent communication.
