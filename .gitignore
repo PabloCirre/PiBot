@@ -1,29 +1,28 @@
-# Visual Studio
-.vs/
-[Bb]in/
-[Oo]bj/
-
-# C#
-*.suo
-*.user
+# Binaries and executables
+*.exe
+*.dll
 *.pdb
-*.cache
-*.lock.json
-project.lock.json
+*.msi
+*.zip
+dist/
 
-# Multipass / Virtualization (TOO BIG for Git)
-*.vhdx
-*.vdi
-*.vmdk
-*.iso
-*.img
-images/
+# IDE and build folders
+bin/
+obj/
+.vs/
+.vscode/
+*.user
+*.suo
 
-# System
+# Operating System files
 Thumbs.db
 Desktop.ini
 .DS_Store
 
-# Logs
+# Temporary and log files
 *.log
-logs/
+tmp/
+temp/
+.agent/
+.gemini/
+.brain/
