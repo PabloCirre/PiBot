@@ -13,8 +13,46 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Windows.Media.Imaging;
 
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Web.Script.Serialization; // Needs System.Web.Extensions
+using System.Drawing; // For Icon
+using System.Windows.Forms; // For NotifyIcon (need to add reference)
+using Application = System.Windows.Application; // Resolve ambiguity
+using MessageBox = System.Windows.MessageBox;
+using Button = System.Windows.Controls.Button;
+using Panel = System.Windows.Controls.Panel;
+using Label = System.Windows.Controls.Label;
+using TextBox = System.Windows.Controls.TextBox;
+using CheckBox = System.Windows.Controls.CheckBox;
+using ProgressBar = System.Windows.Controls.ProgressBar;
+using Orientation = System.Windows.Controls.Orientation;
+using HorizontalAlignment = System.Windows.HorizontalAlignment;
+using VerticalAlignment = System.Windows.VerticalAlignment;
+using ContextMenu = System.Windows.Controls.ContextMenu;
+using MenuItem = System.Windows.Controls.MenuItem;
+using Brush = System.Windows.Media.Brush; // Resolve ambiguity
+using Color = System.Windows.Media.Color;
+using Brushes = System.Windows.Media.Brushes;
+using FontFamily = System.Windows.Media.FontFamily;
+using Image = System.Windows.Controls.Image;
+using ColorConverter = System.Windows.Media.ColorConverter;
+
 namespace PiBotControlCenter
 {
+    public class BotStatus {
+        public string name { get; set; }
+        public string status { get; set; }
+        public string ip { get; set; }
+        public int progress { get; set; }
+    }
+
+    public class SystemStatus {
+        public float ramFree { get; set; }
+        public List<BotStatus> bots { get; set; }
+    }
+
     public partial class App : Application {
         private static Mutex _mutex = null;
 
@@ -34,25 +72,41 @@ namespace PiBotControlCenter
             App app = new App();
             
             // Splash Screen Logic
+            // Headless Server Logic
             app.Startup += (s, e) => {
-                app.ShutdownMode = ShutdownMode.OnExplicitShutdown; // Prevent exit when splash closes explicitly
+                app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
                 
-                SplashScreenWindow splash = new SplashScreenWindow();
-                splash.Show();
+                // Initialize Hidden Server
+                PiBotCenterWpf server = new PiBotCenterWpf();
+                // We do NOT show the window: server.Show();
+                
+                // Setup System Tray Icon
+                NotifyIcon trayIcon = new NotifyIcon();
+                try {
+                	// Try load icon from assets or use default application icon if available
+                	string iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "assets", "pibot_icon.ico");
+                	if (File.Exists(iconPath)) trayIcon.Icon = new Icon(iconPath);
+                	else trayIcon.Icon = SystemIcons.Application;
+                } catch { trayIcon.Icon = SystemIcons.Application; }
+                
+                trayIcon.Visible = true;
+                trayIcon.Text = "PIBOT Control Center (Active)";
+                
+                // Context Menu
+                ContextMenuStrip menu = new ContextMenuStrip();
+                menu.Items.Add("Open Web Interface", null, (sender, args) => server.OpenBrowser());
+                menu.Items.Add("-");
+                menu.Items.Add("Exit PIBOT", null, (sender, args) => {
+                    trayIcon.Visible = false;
+                    Environment.Exit(0);
+                });
+                trayIcon.ContextMenuStrip = menu;
+                
+                trayIcon.DoubleClick += (sender, args) => server.OpenBrowser();
 
-                // 3-second timer for simulated loading
-                System.Windows.Threading.DispatcherTimer timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
-                timer.Tick += (sender, args) => {
-                    timer.Stop();
-                    splash.Close();
-                    
-                    // Launch Main Window
-                    PiBotCenterWpf mainWin = new PiBotCenterWpf();
-                    app.MainWindow = mainWin;
-                    mainWin.Show();
-                    app.ShutdownMode = ShutdownMode.OnMainWindowClose; // Revert to normal shutdown mode
-                };
-                timer.Start();
+                // Initial Tasks
+                server.RefreshBots();
+                // Server starts automatically in constructor
             };
             
             app.Run();
@@ -116,7 +170,16 @@ namespace PiBotControlCenter
         private List<string> dataNames = new List<string>();
         private List<string> dataEntities = new List<string>();
         private List<string> dataColors = new List<string>();
+        private TextBlock _ramLabel;
+        private PerformanceCounter _ramCounter;
         private Random _rnd = new Random();
+        private HttpListener _listener;
+        private int _webPort = 8080;
+        private object _cacheLock = new object();
+        private string _cachedJson = "{}";
+        private List<string> _webLogs = new List<string>();
+        private int _maxWebLogs = 100;
+        private System.Windows.Threading.DispatcherTimer _pollTimer;
         
         private Brush bmoTeal = new SolidColorBrush(Color.FromRgb(181, 226, 213));
         private Brush bmoDark = new SolidColorBrush(Color.FromRgb(30, 33, 39));
@@ -140,14 +203,9 @@ namespace PiBotControlCenter
 
             // 1. Header
             // 1. Header - Nintendo Switch-like "Navbar"
-            Grid header = new Grid() { Background = new SolidColorBrush(Color.FromRgb(230, 230, 230)) }; // Soft Grey
-            header.Effect = new DropShadowEffect() { Color = Colors.Black, Direction = 270, ShadowDepth = 2, Opacity = 0.1 };
+            Grid titleBar = new Grid() { Background = new SolidColorBrush(Color.FromRgb(230, 230, 230)) }; // Soft Grey
+            titleBar.Effect = new DropShadowEffect() { Color = Colors.Black, Direction = 270, ShadowDepth = 2, Opacity = 0.1 };
             
-            // Define 3 columns preventing overlap: Left (Title), Center (Face), Right (Controls)
-            header.ColumnDefinitions.Add(new ColumnDefinition() { Width = new GridLength(1, GridUnitType.Star) });
-            header.ColumnDefinitions.Add(new ColumnDefinition() { Width = new GridLength(200) }); // Center space for Face
-            header.ColumnDefinitions.Add(new ColumnDefinition() { Width = new GridLength(1, GridUnitType.Star) });
-
             // Title Badge (Left)
             Border titleBadge = new Border() { 
                 Background = new SolidColorBrush(Color.FromRgb(231, 0, 18)), // Nintendo Red
@@ -158,22 +216,45 @@ namespace PiBotControlCenter
                 Margin = new Thickness(20, 0, 0, 0),
                 Height = 35
             };
-            titleBadge.Child = new TextBlock() { Text = "PIBOT", FontWeight = FontWeights.Bold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center, FontSize = 14, FontFamily = new FontFamily("Segoe UI Black") };
-            header.Children.Add(titleBadge);
+            TextBlock appTitle = new TextBlock() { Text = "PIBOT", FontWeight = FontWeights.Bold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center, FontSize = 14, FontFamily = new FontFamily("Segoe UI Black") };
+            titleBadge.Child = appTitle;
+
+            StackPanel titleStack = new StackPanel() { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
+            titleStack.Children.Add(titleBadge);
 
             // BMO Face (Center)
             Canvas bmoFace = CreateBmoFace(100, 60);
-            Grid.SetColumn(bmoFace, 1);
-            header.Children.Add(bmoFace);
             
             // Window Controls (Right)
-            StackPanel winControls = new StackPanel() { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 15, 0) };
-            winControls.Children.Add(CreateControlBtn("—", (s, e) => this.WindowState = WindowState.Minimized));
-            winControls.Children.Add(CreateControlBtn("✕", (s, e) => this.Close()));
-            Grid.SetColumn(winControls, 2);
-            header.Children.Add(winControls);
+            StackPanel windowControls = new StackPanel() { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 15, 0) };
+            windowControls.Children.Add(CreateControlBtn("—", (s, e) => this.WindowState = WindowState.Minimized));
+            windowControls.Children.Add(CreateControlBtn("✕", (s, e) => this.Close()));
 
-            header.MouseDown += (s, e) => { if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed) DragMove(); };
+            titleBar.MouseDown += (s, e) => { if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed) DragMove(); };
+
+            // --- RAM Monitor ---
+            _ramLabel = new TextBlock() { Text = "🧠 RAM: calculating...", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.Gray, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 140, 0) };
+            
+            // Re-order children because Grid doesn't respect order like StackPanel
+            Grid headerGrid = new Grid();
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition() { Width = new GridLength(1, GridUnitType.Star) }); // Title
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition() { Width = new GridLength(200) }); // Face + RAM
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition() { Width = new GridLength(1, GridUnitType.Star) }); // Controls
+
+            Grid.SetColumn(titleStack, 0);
+            Grid.SetColumn(bmoFace, 1);
+            Grid.SetColumn(windowControls, 2);
+            
+            // We need to add the RAM label to the middle column too, aligned right
+            StackPanel centerStack = new StackPanel() { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
+            centerStack.Children.Add(_ramLabel);
+            
+            headerGrid.Children.Add(titleStack);
+            headerGrid.Children.Add(bmoFace);
+            headerGrid.Children.Add(centerStack); // Add RAM label to the center column
+            headerGrid.Children.Add(windowControls);
+            
+            titleBar.Children.Add(headerGrid); // Add the new headerGrid to the titleBar
 
             // Life Support: Check on Shutdown
             this.Closing += OnWindowClosing;
@@ -193,9 +274,9 @@ namespace PiBotControlCenter
             content.Children.Add(scroll);
 
             StackPanel sidebar = new StackPanel() { Background = Brushes.White };
-            sidebar.Children.Add(new TextBlock() { Text = "PIBOT COMMAND", FontWeight = FontWeights.Bold, Margin = new Thickness(15, 20, 15, 5), Opacity = 0.5, FontSize = 10 });
+            sidebar.Children.Add(new TextBlock() { Text = "PIBOT CORE", FontWeight = FontWeights.Bold, Margin = new Thickness(15, 20, 15, 5), Opacity = 0.5, FontSize = 10 });
             
-            Button btnNew = new Button() { Content = "LAUNCH PIBOT", Height = 45, Margin = new Thickness(15), Background = accentColor, Foreground = Brushes.White, FontWeight = FontWeights.Bold };
+            Button btnNew = new Button() { Content = "GENERATE PIBOT", Height = 45, Margin = new Thickness(15), Background = accentColor, Foreground = Brushes.White, FontWeight = FontWeights.Bold };
             btnNew.Template = CreateBtnTemplate((SolidColorBrush)accentColor, new SolidColorBrush(Color.FromRgb(35, 126, 189)));
             btnNew.Click += OnNewBot;
             sidebar.Children.Add(btnNew);
@@ -209,7 +290,7 @@ namespace PiBotControlCenter
                 FontFamily = new FontFamily("Consolas"), FontSize = 11, IsReadOnly = true, Padding = new Thickness(10), VerticalScrollBarVisibility = ScrollBarVisibility.Auto
             };
 
-            mainGrid.Children.Add(header);
+            mainGrid.Children.Add(titleBar); Grid.SetRow(titleBar, 0);
             mainGrid.Children.Add(globalProgress);
             mainGrid.Children.Add(content); Grid.SetRow(content, 2);
             mainGrid.Children.Add(consoleLog); Grid.SetRow(consoleLog, 3);
@@ -219,8 +300,282 @@ namespace PiBotControlCenter
             // Load Naming Data
             LoadNamingData();
 
-            Log("PIBOT Pro Beta System Online.");
+            // Initialize RAM Counter
+            try {
+                _ramCounter = new PerformanceCounter("Memory", "Available MBytes");
+            } catch (Exception ex) {
+                Log("⚠️ Error initializing RAM counter: " + ex.Message);
+                _ramCounter = null;
+            }
+
+            Log("PIBOT Pro Beta System Online (Headless).");
             RefreshBots();
+            
+            // Start Web Server
+            StartWebServer();
+
+            // Background Polling for API Speed
+            _pollTimer = new System.Windows.Threading.DispatcherTimer();
+            _pollTimer.Interval = TimeSpan.FromSeconds(3);
+            _pollTimer.Tick += (s, e) => UpdateStatusCache();
+            _pollTimer.Start();
+            UpdateStatusCache(); // Initial run
+        }
+
+        private void UpdateStatusCache() {
+            ThreadPool.QueueUserWorkItem(o => {
+                try {
+                    var botList = new List<object>();
+                    Process p = new Process();
+                    p.StartInfo.FileName = multipassPath;
+                    p.StartInfo.Arguments = "list --format csv";
+                    p.StartInfo.RedirectStandardOutput = true;
+                    p.StartInfo.UseShellExecute = false;
+                    p.StartInfo.CreateNoWindow = true;
+                    p.Start();
+                    string output = p.StandardOutput.ReadToEnd();
+                    p.WaitForExit();
+                    
+                    var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var line in lines) {
+                        if (line.StartsWith("Name") || !line.Contains("pibot")) continue;
+                        
+                        // Robust CSV split (handle quotes)
+                        var parts = line.Replace("\"", "").Split(',');
+                        if (parts.Length >= 3) {
+                            string bName = parts[0].Trim();
+                            string state = parts[1].Trim();
+                            string bIp = parts[2].Trim();
+                            int prog = 0;
+
+                            if (state == "Running") {
+                                prog = EstimateProgress(bName);
+                            } else if (state == "Starting") {
+                                prog = 10;
+                            } else if (state == "Stopped") {
+                                prog = 0;
+                            } else {
+                                prog = 5; // Unknown/Transition
+                            }
+
+                            botList.Add(new { 
+                                name = bName, 
+                                status = state, 
+                                ip = bIp, 
+                                progress = prog 
+                            });
+                        }
+                    }
+
+                    float currentRam = 0;
+                    if (_ramCounter != null) {
+                        try { currentRam = _ramCounter.NextValue(); } catch { }
+                    }
+
+                    var sysStatus = new { 
+                        ramFree = (int)currentRam, 
+                        bots = botList,
+                        logs = GetLogs()
+                    };
+                    
+                    string json = new JavaScriptSerializer().Serialize(sysStatus);
+                    // Ensure lowercase keys for JS stability (manual lowercase if needed, but Serializer usually keeps property names)
+                    // We'll use anonymous objects which usually work well.
+
+                    lock (_cacheLock) {
+                        _cachedJson = json;
+                    }
+                } catch (Exception ex) { 
+                    Log("Cache Update Error: " + ex.Message);
+                }
+            });
+        }
+
+        private List<string> GetLogs() {
+            lock(_webLogs) {
+                var copy = new List<string>(_webLogs);
+                _webLogs.Clear(); // Consumed by the web UI for incrementals
+                return copy;
+            }
+        }
+
+        private int EstimateProgress(string name) {
+            try {
+                Process p = new Process();
+                p.StartInfo.FileName = multipassPath;
+                // Faster check: try to see if websockify is listening on 6080 using 'ss' or 'netstat'
+                p.StartInfo.Arguments = "exec " + name + " -- bash -c \"(ss -ltn | grep -q :6080 && echo 100) || (grep -c '...' /var/log/cloud-init-output.log || echo 0)\"";
+                p.StartInfo.RedirectStandardOutput = true;
+                p.StartInfo.UseShellExecute = false;
+                p.StartInfo.CreateNoWindow = true;
+                p.Start();
+                string output = p.StandardOutput.ReadToEnd().Trim();
+                p.WaitForExit();
+
+                if (output == "100") return 100;
+                
+                // If it's not 100, we count lines to estimate. 
+                // But cloud-init log might be short. Let's just use a conservative estimate based on time or just lines.
+                int lineCount = 0;
+                int.TryParse(output, out lineCount);
+                
+                // GUI Install is heavy. 
+                int pct = 15 + (lineCount * 80 / 4000); 
+                return pct > 98 ? 98 : (pct < 15 ? 15 : pct);
+            } catch { return 15; }
+        }
+
+        public void OpenBrowser() {
+            string url = "http://localhost:" + _webPort + "/";
+            Log("🌐 Opening Browser: " + url);
+            try {
+                // Try to find Edge or Chrome for --app mode
+                string edge = @"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe";
+                string chrome = @"C:\Program Files\Google\Chrome\Application\chrome.exe";
+                
+                if (File.Exists(edge)) {
+                    Process.Start(edge, "--app=" + url + " --window-size=1200,800");
+                } else if (File.Exists(chrome)) {
+                    Process.Start(chrome, "--app=" + url + " --window-size=1200,800");
+                } else {
+                    // Fallback to default browser
+                    Process.Start(url);
+                }
+            } catch { Process.Start(url); }
+        }
+
+        // Removed duplicate OpenBrowser
+
+        private void StartWebServer()
+        {
+            ThreadPool.QueueUserWorkItem(o => {
+                _webPort = GetFreePort(8080);
+                _listener = new HttpListener();
+                _listener.Prefixes.Add("http://localhost:" + _webPort + "/");
+                try {
+                    _listener.Start();
+                    this.Dispatcher.Invoke(() => Log("🌍 Web Interface listening on port " + _webPort));
+                    
+                    // Use the improved browser launcher
+                    this.Dispatcher.BeginInvoke(new Action(() => OpenBrowser()));
+                    
+                    while (_listener.IsListening) {
+                        try {
+                            var context = _listener.GetContext();
+                            ThreadPool.QueueUserWorkItem(c => HandleWebRequest((HttpListenerContext)c), context);
+                        } catch { }
+                    }
+                } catch (Exception ex) {
+                    this.Dispatcher.Invoke(() => Log("❌ Web Server Error: " + ex.Message));
+                }
+            });
+        }
+
+        private int GetFreePort(int startPort) {
+            int port = startPort;
+            while (true) {
+                try {
+                    TcpListener tcp = new TcpListener(IPAddress.Loopback, port);
+                    tcp.Start();
+                    tcp.Stop();
+                    return port;
+                } catch { port++; }
+            }
+        }
+
+        private void HandleWebRequest(HttpListenerContext context) {
+            try {
+                var req = context.Request;
+                var res = context.Response;
+                string path = req.Url.AbsolutePath;
+                
+                if (path != "/api/status") {
+                    Log("📥 Request: " + req.HttpMethod + " " + path);
+                }
+
+                // CORS
+                res.AddHeader("Access-Control-Allow-Origin", "*");
+
+                if (path.StartsWith("/api/")) {
+                    HandleApi(path, req, res);
+                } else {
+                    ServeStaticFile(path, res);
+                }
+            } catch (Exception ex) {
+                this.Dispatcher.Invoke(() => Log("Web Error: " + ex.Message));
+            }
+        }
+
+        private void HandleApi(string path, HttpListenerRequest req, HttpListenerResponse res) {
+            string jsonResponse = "{}";
+            if (path == "/api/status") {
+                // Return Cached Status Instant
+                lock (_cacheLock) {
+                    jsonResponse = _cachedJson;
+                }
+
+            } else if (path == "/api/start" || path == "/api/stop" || path == "/api/purge") {
+                string name = req.QueryString["name"];
+                string action = path.Replace("/api/", "");
+                if (!string.IsNullOrEmpty(name)) {
+                    if (action == "purge") {
+                        this.Dispatcher.Invoke(() => RunMultipass("delete --purge", name));
+                    } else {
+                        this.Dispatcher.Invoke(() => RunMultipass(action, name));
+                    }
+                    jsonResponse = "{\"msg\": \"Command Sent\"}";
+                }
+            } else if (path == "/api/launch") {
+                string ram = req.QueryString["ram"] ?? "1024M";
+                string disk = req.QueryString["disk"] ?? "10G";
+
+                // If it's a POST request, try to read from the body
+                if (req.HttpMethod == "POST" && req.HasEntityBody) {
+                    using (var reader = new StreamReader(req.InputStream, req.ContentEncoding)) {
+                        string requestBody = reader.ReadToEnd();
+                        // Assuming JSON body like {"ram": "2048M", "disk": "20G"}
+                        var json = new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(requestBody);
+                        if (json.ContainsKey("ram")) ram = json["ram"];
+                        if (json.ContainsKey("disk")) disk = json["disk"];
+                    }
+                }
+
+                this.Dispatcher.Invoke(() => LaunchCustomBot(ram, disk));
+                jsonResponse = "{\"msg\": \"Launch Initiated: " + ram + " RAM / " + disk + " Disk\"}";
+            }
+
+            byte[] buffer = Encoding.UTF8.GetBytes(jsonResponse);
+            res.ContentType = "application/json";
+            res.ContentEncoding = Encoding.UTF8;
+            res.ContentLength64 = buffer.Length;
+            using (var s = res.OutputStream) {
+                s.Write(buffer, 0, buffer.Length);
+            }
+            res.Close();
+        }
+
+        private void ServeStaticFile(string path, HttpListenerResponse res) {
+            if (path == "/") path = "/index.html";
+            string webRoot = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "web");
+            string filePath = System.IO.Path.Combine(webRoot, path.TrimStart('/'));
+
+            if (File.Exists(filePath)) {
+                byte[] buffer = File.ReadAllBytes(filePath);
+                string ext = System.IO.Path.GetExtension(filePath).ToLower();
+                if (ext == ".html") res.ContentType = "text/html";
+                else if (ext == ".css") res.ContentType = "text/css";
+                else if (ext == ".js") res.ContentType = "application/javascript";
+                else if (ext == ".png") res.ContentType = "image/png";
+                else if (ext == ".mp4") res.ContentType = "video/mp4";
+                
+                res.ContentLength64 = buffer.Length;
+                using (var s = res.OutputStream) {
+                    s.Write(buffer, 0, buffer.Length);
+                }
+            } else {
+                res.StatusCode = 404;
+            }
+            res.Close();
         }
 
         private void LoadNamingData() {
@@ -249,14 +604,16 @@ namespace PiBotControlCenter
 
         private string GenerateProName() {
             // Default fallback
-            if (dataNames.Count == 0) return "pibot-legacy-" + DateTime.Now.ToString("ss");
+            if (dataNames.Count == 0) return "Alpha Bravo";
 
             string n = dataNames[_rnd.Next(dataNames.Count)].Trim();
-            string e = dataEntities.Count > 0 ? dataEntities[_rnd.Next(dataEntities.Count)].Trim() : "Void";
-            string c = dataColors.Count > 0 ? dataColors[_rnd.Next(dataColors.Count)].Trim() : "White";
-
-            // Format: pibot-name-entity-color (e.g., pibot-aaron-andromeda-mint)
-            return String.Format("pibot-{0}-{1}-{2}", n, e, c).ToLower().Replace(" ", "");
+            string e = dataEntities.Count > 0 ? dataEntities[_rnd.Next(dataEntities.Count)].Trim() : "";
+            
+            // Format: "Name Entity" (e.g., "Victor Eventide")
+            string finalName = (n + " " + e).Trim();
+            // Capitalize First letters
+            finalName = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(finalName.ToLower());
+            return finalName;
         }
 
         private Canvas CreateBmoFace(double w, double h) {
@@ -270,22 +627,84 @@ namespace PiBotControlCenter
             return c;
         }
 
-        private void Log(string msg) {
+        private void LaunchCustomBot(string ram, string disk) {
+            string friendlyName = GenerateProName();
+            // Multipass needs lowercase and no spaces for the instance name
+            string instanceName = friendlyName.ToLower().Replace(" ", "-");
+            if (!instanceName.StartsWith("pibot-")) instanceName = "pibot-" + instanceName;
+
+            Log("✨ Initiating New Birth: " + friendlyName);
+            Log("⏳ Config: " + ram + " RAM / " + disk + " Disk");
+            
+            ThreadPool.QueueUserWorkItem(s => {
+                try {
+                    string cloudInitPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "cloud-init.yaml");
+                    string cmd = "launch lts --name " + instanceName + " --cpus 2 --memory " + ram + " --disk " + disk;
+                    if (File.Exists(cloudInitPath)) cmd += " --cloud-init \"" + cloudInitPath + "\"";
+
+                    ProcessStartInfo psi = new ProcessStartInfo(multipassPath, cmd);
+                    psi.CreateNoWindow = true; psi.WindowStyle = ProcessWindowStyle.Hidden;
+                    psi.RedirectStandardOutput = true; psi.RedirectStandardError = true;
+                    psi.UseShellExecute = false;
+
+                    using (Process p = Process.Start(psi)) {
+                        p.OutputDataReceived += (proc, outLine) => { if (!string.IsNullOrEmpty(outLine.Data)) Log(outLine.Data); };
+                        p.ErrorDataReceived += (proc, errLine) => { if (!string.IsNullOrEmpty(errLine.Data)) Log("❌ MP Error: " + errLine.Data); };
+                        p.BeginOutputReadLine(); p.BeginErrorReadLine();
+                        p.WaitForExit(900000); // 15 min
+                    }
+                    this.Dispatcher.Invoke(() => RefreshBots());
+                } catch (Exception ex) { Log("💥 CUSTOM LAUNCH ERROR: " + ex.Message); }
+            });
+        }
+
+        public void Log(string msg) {
             // Clean ANSI and Multipass specific codes for cleaner UI
             msg = Regex.Replace(msg, @"\x1B\[[^@-~]*[@-~]", "");
             msg = Regex.Replace(msg, @"\[[0-9A-Z]{2,}", ""); 
             msg = msg.Replace("[2K[0A[0E", "").Replace("[0A[0E", "").Trim();
             
             if (string.IsNullOrEmpty(msg)) return;
-            if (msg.Contains("retrieving image") || msg.Contains("Checking for")) return;
+            string timestamp = DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
+            string formatted = "[" + timestamp + "] " + msg;
             
+            // Log to Web Buffer
+            lock(_webLogs) {
+                _webLogs.Add(formatted);
+                if (_webLogs.Count > _maxWebLogs) _webLogs.RemoveAt(0);
+            }
+
+            // Log to file for headless debugging
+            try {
+                File.AppendAllText(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pibot_system.log"), formatted + Environment.NewLine);
+            } catch { }
+
+            if (consoleLog == null) return;
             this.Dispatcher.Invoke(() => {
-                consoleLog.AppendText(DateTime.Now.ToString("[HH:mm:ss] ") + msg + "\n");
+                consoleLog.AppendText(formatted + Environment.NewLine);
                 consoleLog.ScrollToEnd();
             });
         }
 
-        private void RefreshBots() {
+        public void UpdateRamStats() {
+            if (_ramCounter != null) {
+                this.Dispatcher.Invoke(() => {
+                    float ram = _ramCounter.NextValue();
+                    int mb = (int)ram;
+                    int freeGB = mb / 1024;
+                    int maxBots = mb / 1100; // conservative estimate
+                    
+                    if (maxBots < 1) _ramLabel.Foreground = Brushes.Red;
+                    else if (maxBots < 2) _ramLabel.Foreground = Brushes.Orange;
+                    else _ramLabel.Foreground = new SolidColorBrush(Color.FromRgb(50, 215, 75));
+
+                    _ramLabel.Text = string.Format("🧠 RAM: {0:N0}MB FREE", mb);
+                });
+            }
+        }
+
+        public void RefreshBots() {
+            if (botList == null) return; // Ensure botList is initialized before trying to access it
             ThreadPool.QueueUserWorkItem(s => {
                 try {
                     ProcessStartInfo psi = new ProcessStartInfo(multipassPath, "list --format csv");
@@ -456,18 +875,19 @@ namespace PiBotControlCenter
         }
 
         private void OnNewBot(object sender, RoutedEventArgs e) {
-            // Advanced Name Generation
-            string name = GenerateProName();
-            
-            Log("✨ Initiating New PIBOT: " + name);
-            Log("⏳ Requesting resources (2CPU, 1.5GB RAM, LTS Image)...");
+            string friendlyName = GenerateProName();
+            string instanceName = friendlyName.ToLower().Replace(" ", "-");
+            if (!instanceName.StartsWith("pibot-")) instanceName = "pibot-" + instanceName;
+
+            Log("✨ Initiating New Deployment: " + friendlyName);
+            Log("⏳ Requesting resources (2CPU, 1024MB RAM, LTS Image)...");
             globalProgress.IsIndeterminate = true;
             
             ThreadPool.QueueUserWorkItem(s => {
                 try {
                     // Robust Launch Command: Explicit LTS, Disk Limit, Cloud-Init
                     string cloudInitPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "cloud-init.yaml");
-                    string cmd = "launch lts --name " + name + " --cpus 2 --memory 1536M --disk 10G";
+                    string cmd = "launch lts --name " + instanceName + " --cpus 2 --memory 1024M --disk 10G";
                     
                     if (File.Exists(cloudInitPath)) {
                         cmd += " --cloud-init \"" + cloudInitPath + "\"";
@@ -498,7 +918,7 @@ namespace PiBotControlCenter
                             Log("⚠️ Launch taking too long! It might still be installing in background.");
                             // Do NOT kill the process, let it finish. Just stop waiting on UI.
                         } else {
-                            if (p.ExitCode == 0) Log("✅ " + name + " system ready!");
+                            if (p.ExitCode == 0) Log("✅ " + friendlyName + " system ready!");
                             else Log("⚠️ Launch finished with Exit Code: " + p.ExitCode);
                         }
                     }
