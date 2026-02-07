@@ -1,6 +1,6 @@
-# MoltBolt Agent Integration Guide
+# PiBot Agent Integration Guide
 
-This document defines how the MoltBolt autonomous agent interacts with the graphical Linux environment.
+This document defines how the PiBot autonomous agent interacts with the graphical Linux environment.
 
 ## 1. Display Access
 
@@ -14,8 +14,8 @@ export DISPLAY=:1
 
 The agent captures the current state of the screen using `scrot`.
 
-- **Command**: `scrot /tmp/moltbolt_screen.png`
-- **Output**: A PNG file representing the current 1280x720 desktop.
+- **Command**: `scrot /tmp/pibot_screen.png`
+- **Output**: A PNG file representing the current 1440x900 desktop.
 - **Optimization**: Use `-q 75` to reduce file size for faster processing.
 
 ## 3. Input Execution (Mouse & Keyboard)
@@ -30,7 +30,7 @@ The agent uses `xdotool` to simulate user interactions.
 
 ### Keyboard Actions
 
-- **Type Text**: `xdotool type "Hello MoltBolt"`
+- **Type Text**: `xdotool type "Hello PiBot"`
 - **Key Combo**: `xdotool key control+t` (New tab in Chrome)
 - **Enter**: `xdotool key Return`
 
@@ -38,7 +38,7 @@ The agent uses `xdotool` to simulate user interactions.
 
 Chrome is configured to run with a persistent profile.
 
-- **Profile Path**: `/home/moltbolt/.config/google-chrome`
+- **Profile Path**: `/home/pibot/.config/google-chrome`
 - **Launch Command**:
 
   ```bash
@@ -49,5 +49,5 @@ Chrome is configured to run with a persistent profile.
 
 The agent should be managed as a systemd service (optional but recommended).
 
-- **Startup**: `systemctl start moltbolt-agent`
-- **Logs**: `journalctl -u moltbolt-agent -f`
+- **Startup**: `systemctl start pibot-agent`
+- **Logs**: `journalctl -u pibot-agent -f`

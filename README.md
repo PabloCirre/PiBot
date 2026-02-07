@@ -1,8 +1,8 @@
 # 🤖 PiBot Pro - Neural Core [V0.1 Alpha]
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-teal.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/Version-0.1--Alpha-blue.svg)]()
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-lightgrey.svg)]()
+[![Version](https://img.shields.io/badge/Version-0.1--Alpha-blue.svg)](https://github.com/YourRepo/PiBot/releases)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-lightgrey.svg)](https://github.com/YourRepo/PiBot)
 
 > **The ultimate management ecosystem for autonomous agents, cloudbots, and virtualized neural units.**
 

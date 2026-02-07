@@ -1,10 +1,11 @@
 # Binaries and executables
-*.exe
-*.dll
-*.pdb
-*.msi
-*.zip
+# We allow the /Release folder but ignore local build artifacts
+bin/
+obj/
 dist/
+
+# Allow specific release folder
+!Release/
 
 # IDE and build folders
 bin/

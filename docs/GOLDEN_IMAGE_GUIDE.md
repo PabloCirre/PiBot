@@ -14,7 +14,7 @@ Future bots will be cloned from this, launching in **10 seconds** instead of 10 
 
 ## 3. Customization (Your Mission) 🛠️
 
-Once the bot is ready (green in Control Center), connect via **VIEW** and do the following:
+Once the bot is ready (green in Control Center), connect via **CONNECT** and do the following:
 
 1. **Install Essential Software**:
 
