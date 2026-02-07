@@ -126,7 +126,7 @@ namespace PiBotControlCenter
             this.Topmost = true;
             this.ShowInTaskbar = false;
 
-            string imagePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Media", "Pantalla de bienvenida al programa.png");
+            string imagePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Media", "pibot_splash.png");
             
             Border border = new Border() { 
                 CornerRadius = new CornerRadius(20), 

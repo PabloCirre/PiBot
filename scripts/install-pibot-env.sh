@@ -37,16 +37,10 @@ apt-get install -y pulseaudio pulseaudio-utils alsa-utils v4l-utils \
 sed -i 's/;load-module module-native-protocol-tcp/load-module module-native-protocol-tcp auth-anonymous=1/' /etc/pulse/default.pa || true
 
 # 3. Localization
-echo "🌎 Configuring language ($TARGET_LANG)..."
-if [ "$TARGET_LANG" = "es" ]; then
-    apt-get install -y language-pack-es
-    localectl set-locale LANG=es_ES.UTF-8
-    localectl set-x11-keymap es
-else
-    apt-get install -y language-pack-en
-    localectl set-locale LANG=en_US.UTF-8
-    localectl set-x11-keymap us
-fi
+echo "🌎 Configuring language (English Enforcement)..."
+apt-get install -y language-pack-en
+localectl set-locale LANG=en_US.UTF-8
+localectl set-x11-keymap us
 
 # 4. User Management
 if ! id "$PI_USER" &>/dev/null; then
