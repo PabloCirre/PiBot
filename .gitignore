@@ -1,0 +1,29 @@
+# Visual Studio
+.vs/
+[Bb]in/
+[Oo]bj/
+
+# C#
+*.suo
+*.user
+*.pdb
+*.cache
+*.lock.json
+project.lock.json
+
+# Multipass / Virtualization (TOO BIG for Git)
+*.vhdx
+*.vdi
+*.vmdk
+*.iso
+*.img
+images/
+
+# System
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Logs
+*.log
+logs/

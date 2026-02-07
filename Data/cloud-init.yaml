@@ -1,0 +1,22 @@
+#cloud-config
+package_update: true
+packages:
+  - xfce4
+  - xfce4-goodies
+  - novnc
+  - websockify
+  - python3-numpy
+
+runcmd:
+  - echo "Configuring VNC..."
+  - mkdir -p /home/ubuntu/.vnc
+  - echo "password" | vncpasswd -f > /home/ubuntu/.vnc/passwd
+  - chmod 600 /home/ubuntu/.vnc/passwd
+  - chown -R ubuntu:ubuntu /home/ubuntu/.vnc
+  
+  - echo "Starting VNC Server..."
+  - sudo -u ubuntu vncserver :1 -geometry 1280x800 -depth 24
+  
+  - echo "Starting noVNC websockify..."
+  - openssl req -new -x509 -days 365 -nodes -out /home/ubuntu/self.pem -keyout /home/ubuntu/self.pem -subj "/C=US/ST=Denial/L=Springfield/O=Dis/CN=www.example.com"
+  - nohup websockify -D --web=/usr/share/novnc/ --cert=/home/ubuntu/self.pem 6080 localhost:5901 &

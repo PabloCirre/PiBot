@@ -1,0 +1,21 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/jammy64" # Ubuntu 22.04 LTS
+
+  # Network configuration
+  config.vm.network "forwarded_port", guest: 6080, host: 6080 # noVNC
+  config.vm.network "forwarded_port", guest: 5901, host: 5901 # VNC
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "2048"
+    vb.cpus = 2
+    vb.name = "MoltBolt-Environment"
+  end
+
+  # Provisioning
+  config.vm.provision "shell", path: "install-moltbolt-env.sh"
+  
+  config.vm.post_up_message = "🚀 MoltBolt Environment is READY! Access via http://localhost:6080"
+end
