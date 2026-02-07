@@ -36,11 +36,11 @@ namespace PiBotInstaller
                 CreateShortcut(desktopPath, Path.Combine(installDir, "PiBotControlCenter.exe"), "PIBOT Control Center");
                 CreateShortcut(startupPath, Path.Combine(installDir, "PiBotTray.exe"), "PIBOT Startup");
 
-                MessageBox.Show("PIBOT Pro Beta instalado con éxito.\nBusca los accesos directos en tu escritorio.", "PIBOT Beta", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("PIBOT Pro Beta installed successfully.\nCheck the shortcuts on your desktop.", "PIBOT Beta", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 Process.Start(Path.Combine(installDir, "PiBotTray.exe"));
 
             } catch (Exception ex) {
-                MessageBox.Show("Error en la instalación: " + ex.Message, "PIBOT Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Installation Error: " + ex.Message, "PIBOT Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 

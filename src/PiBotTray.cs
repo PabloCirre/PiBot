@@ -34,42 +34,26 @@ namespace PiBotManager
 
         private void DetectLanguage()
         {
-            lang = CultureInfo.CurrentCulture.TwoLetterISOLanguageName.ToLower();
-            if (lang != "es") lang = "en";
+            // Force English for the global v0.1 release
+            lang = "en";
         }
 
         private void InitializeTranslations()
         {
             t = new Dictionary<string, string>();
-            if (lang == "es") {
-                t["tray_text"] = "PIBOT Pro Control";
-                t["header"] = "🔹 PIBOT Pro Beta";
-                t["loading"] = "Cargando...";
-                t["finding_ip"] = "Buscando IP...";
-                t["view"] = "👁️ Ver PIBOT (Escritorio)";
-                t["start"] = "🔥 Encender PIBOT";
-                t["stop"] = "❄️ Apagar PIBOT";
-                t["help"] = "📖 Ayuda y Manual PIBOT";
-                t["exit"] = "🚪 Cerrar Administrador";
-                t["ip_label"] = "IP: {0}";
-                t["status_label"] = "Estado: {0}";
-                t["balloon_title"] = "PIBOT Pro Beta";
-                t["balloon_msg"] = "Control PIBOT preparado. Clic derecho en BMO.";
-            } else {
-                t["tray_text"] = "PIBOT Pro Control";
-                t["header"] = "🔹 PIBOT Pro Beta";
-                t["loading"] = "Loading...";
-                t["finding_ip"] = "Finding IP...";
-                t["view"] = "👁️ View PIBOT (Desktop)";
-                t["start"] = "🔥 Start PIBOT";
-                t["stop"] = "❄️ Stop PIBOT";
-                t["help"] = "📖 PIBOT Help & Manual";
-                t["exit"] = "🚪 Exit Manager";
-                t["ip_label"] = "IP: {0}";
-                t["status_label"] = "Status: {0}";
-                t["balloon_title"] = "PIBOT Pro Beta";
-                t["balloon_msg"] = "PIBOT Control ready. Right-click BMO.";
-            }
+            t["tray_text"] = "PIBOT Pro Control";
+            t["header"] = "🔹 PIBOT Pro Beta";
+            t["loading"] = "Loading...";
+            t["finding_ip"] = "Finding IP...";
+            t["view"] = "👁️ View PIBOT (Desktop)";
+            t["start"] = "🔥 Start PIBOT";
+            t["stop"] = "❄️ Stop PIBOT";
+            t["help"] = "📖 PIBOT Help & Manual";
+            t["exit"] = "🚪 Exit Manager";
+            t["ip_label"] = "IP: {0}";
+            t["status_label"] = "Status: {0}";
+            t["balloon_title"] = "PIBOT Pro Beta";
+            t["balloon_msg"] = "PIBOT Control ready. Right-click BMO.";
         }
 
         private void InitializeComponent()

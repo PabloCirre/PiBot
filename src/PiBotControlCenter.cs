@@ -65,7 +65,7 @@ namespace PiBotControlCenter
 
             if (!createdNew) {
                 // If already running, notify and exit
-                MessageBox.Show("PIBOT Control Center ya está en ejecución.", "PIBOT System");
+                MessageBox.Show("PIBOT Control Center is already running.", "PIBOT System");
                 return;
             }
 
@@ -795,7 +795,7 @@ namespace PiBotControlCenter
                 Foreground = Brushes.Salmon, FontWeight = FontWeights.Bold, FontSize = 16, ToolTip = "Assassinate PIBOT"
             };
             btnKill.Click += (s, e) => {
-                if (MessageBox.Show("Seguro que quieres eliminar a " + name + "?", "TERMINATE PIBOT", MessageBoxButton.YesNo) == MessageBoxResult.Yes) {
+                if (MessageBox.Show("Are you sure you want to terminate " + name + "?", "TERMINATE PIBOT", MessageBoxButton.YesNo) == MessageBoxResult.Yes) {
                     RunMultipass("delete --purge", name);
                 }
             };
