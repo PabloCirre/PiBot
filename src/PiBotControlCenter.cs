@@ -74,28 +74,33 @@ namespace PiBotControlCenter
             
             // Splash Screen Logic
             // Headless Server Logic
+            // GUI Launch Logic
             app.Startup += (s, e) => {
-                app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                app.ShutdownMode = ShutdownMode.OnLastWindowClose;
                 
-                // Initialize Hidden Server
+                // Initialize and Show the Control Center directly
                 PiBotCenterWpf server = new PiBotCenterWpf();
-                // We do NOT show the window: server.Show();
+                server.Show();
                 
-                // Setup System Tray Icon
+                // Setup System Tray Icon as a background helper
                 NotifyIcon trayIcon = new NotifyIcon();
                 try {
-                	// Try load icon from assets or use default application icon if available
                 	string iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "assets", "pibot_icon.ico");
                 	if (File.Exists(iconPath)) trayIcon.Icon = new Icon(iconPath);
                 	else trayIcon.Icon = SystemIcons.Application;
                 } catch { trayIcon.Icon = SystemIcons.Application; }
                 
                 trayIcon.Visible = true;
-                trayIcon.Text = "PIBOT Control Center (Active)";
+                trayIcon.Text = "PIBOT Pro Center";
                 
                 // Context Menu
                 ContextMenuStrip menu = new ContextMenuStrip();
-                menu.Items.Add("Open Web Interface", null, (sender, args) => server.OpenBrowser());
+                menu.Items.Add("Show Control Center", null, (sender, args) => {
+                    server.Show();
+                    server.WindowState = WindowState.Normal;
+                    server.Activate();
+                });
+                menu.Items.Add("Open Web View (Legacy)", null, (sender, args) => server.OpenBrowser());
                 menu.Items.Add("-");
                 menu.Items.Add("Exit PIBOT", null, (sender, args) => {
                     trayIcon.Visible = false;
@@ -103,11 +108,14 @@ namespace PiBotControlCenter
                 });
                 trayIcon.ContextMenuStrip = menu;
                 
-                trayIcon.DoubleClick += (sender, args) => server.OpenBrowser();
+                trayIcon.DoubleClick += (sender, args) => {
+                    server.Show();
+                    server.WindowState = WindowState.Normal;
+                    server.Activate();
+                };
 
                 // Initial Tasks
                 server.RefreshBots();
-                // Server starts automatically in constructor
             };
             
             app.Run();
@@ -796,8 +804,17 @@ namespace PiBotControlCenter
             string humanStatus = status;
             string statusColor = "#555555";
             string lowerStatus = status.ToLower();
+            int currentProg = EstimateProgress(name);
 
-            if (lowerStatus == "running") { humanStatus = "🟢 Running (Active)"; statusColor = "#27AE60"; }
+            if (lowerStatus == "running") { 
+                if (currentProg < 100) {
+                    humanStatus = "🐣 Hatching (Neural Sync)";
+                    statusColor = "#F1C40F"; // Golden
+                } else {
+                    humanStatus = "🟢 Running (Active)"; 
+                    statusColor = "#27AE60"; // Green
+                }
+            }
             else if (lowerStatus == "stopped") { humanStatus = "🔴 Stopped (Asleep)"; statusColor = "#E74C3C"; }
             else if (lowerStatus.Contains("start")) { humanStatus = "🟡 Starting (Waking Up)"; statusColor = "#F1C40F"; }
             else if (lowerStatus.Contains("stop")) { humanStatus = "🟠 Stopping (Sleeping)"; statusColor = "#E67E22"; }
@@ -805,18 +822,55 @@ namespace PiBotControlCenter
             else if (lowerStatus == "deleted") { humanStatus = "💀 Deleted (Dead)"; statusColor = "#7F8C8D"; }
             else { humanStatus = "❓ Unknown (" + status + ")"; statusColor = "#95A5A6"; }
 
-            info.Children.Add(new TextBlock() { Text = displayName.ToUpper(), FontSize = 14, FontWeight = FontWeights.Bold, FontFamily = new FontFamily("Segoe UI Black") });
+            // 1. Name Tag
+            info.Children.Add(new TextBlock() { 
+                Text = displayName.ToUpper(), 
+                FontSize = 14, 
+                FontWeight = FontWeights.Bold, 
+                FontFamily = new FontFamily("Segoe UI Black"),
+                Foreground = bmoDark
+            });
             
-            StackPanel statusPanel = new StackPanel() { Orientation = Orientation.Horizontal };
-            statusPanel.Children.Add(new TextBlock() { Text = status, FontSize = 11, Foreground = status == "Running" ? Brushes.SeaGreen : Brushes.Orange, FontWeight = FontWeights.Bold });
-            if (!string.IsNullOrEmpty(uptime)) {
-                statusPanel.Children.Add(new TextBlock() { Text = " • ⏱️ " + uptime, FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(5, 0, 0, 0) });
+            // 2. Status Label (Using our new "Hatching" and colored logic)
+            info.Children.Add(new TextBlock() { 
+                Text = humanStatus, 
+                FontSize = 11, 
+                Foreground = (SolidColorBrush)new BrushConverter().ConvertFromString(statusColor), 
+                FontWeight = FontWeights.Bold,
+                Margin = new Thickness(0, 2, 0, 0)
+            });
+
+            // 3. Uptime Timer (New Line for better visibility)
+            if (!string.IsNullOrEmpty(uptime) && uptime != "0m") {
+                info.Children.Add(new TextBlock() { 
+                    Text = "⏱️ " + uptime, 
+                    FontSize = 10, 
+                    Foreground = Brushes.SlateGray, 
+                    FontWeight = FontWeights.Medium,
+                    Margin = new Thickness(0, 2, 0, 0)
+                });
             }
-            info.Children.Add(statusPanel);
+
+            // 4. IP Information
+            info.Children.Add(new TextBlock() { 
+                Text = "🌐 " + (string.IsNullOrEmpty(ip) ? "Offline" : ip), 
+                FontSize = 10, 
+                Foreground = Brushes.Gray,
+                Margin = new Thickness(0, 2, 0, 0)
+            });
             
-            info.Children.Add(new TextBlock() { Text = "IP: " + (string.IsNullOrEmpty(ip) ? "Offline" : ip), FontSize = 10, Foreground = Brushes.Gray });
+            // 5. Progress Bar (Synced with Hatching logic)
+            ProgressBar pbar = new ProgressBar() { 
+                Height = 3, 
+                Margin = new Thickness(0, 10, 0, 0), 
+                Minimum = 0, 
+                Maximum = 100, 
+                Value = currentProg,
+                Background = new SolidColorBrush(Color.FromArgb(30, 0, 0, 0)), 
+                BorderThickness = new Thickness(0), 
+                Foreground = (currentProg < 100 && status.ToLower() == "running") ? Brushes.Gold : accentColor 
+            };
             
-            ProgressBar pbar = new ProgressBar() { Height = 3, Margin = new Thickness(0, 10, 0, 0), Minimum = 0, Maximum = 100, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = accentColor };
             if (status.ToLower().Contains("starting") || status.ToLower().Contains("stopping")) pbar.IsIndeterminate = true;
             info.Children.Add(pbar);
             
