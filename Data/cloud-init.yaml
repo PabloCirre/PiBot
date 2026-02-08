@@ -50,6 +50,20 @@ write_files:
       }" | jq -r '.response' >> /home/pibot/pibot_thoughts.log 2>&1
       echo -e "\n---" >> /home/pibot/pibot_thoughts.log
 
+  - path: /home/pibot/Desktop/ViewThoughts.desktop
+    permissions: "0755"
+    owner: pibot:pibot
+    content: |
+      [Desktop Entry]
+      Version=1.0
+      Type=Application
+      Name=PiBot Thoughts
+      Comment=View AI Autonomous Logs
+      Exec=mousepad /home/pibot/pibot_thoughts.log
+      Icon=text-x-generic
+      Terminal=false
+      Categories=Utility;
+
   - path: /etc/systemd/system/openclaw.service
     content: |
       [Unit]
@@ -121,6 +135,7 @@ runcmd:
     # Minimalist Kiosk WM
     xfwm4 &
     xfsettingsd &
+    xfdesktop &
     # Disable Screen Blanking / Power Saving
     xset s off
     xset -dpms
@@ -220,4 +235,5 @@ runcmd:
   - apt-get install -y jq
   - (crontab -u pibot -l 2>/dev/null; echo "*/5 * * * * /home/pibot/pibot_thought.sh") | crontab -u pibot -
   - touch /home/pibot/pibot_thoughts.log
-  - chown pibot:pibot /home/pibot/pibot_thoughts.log /home/pibot/pibot_thought.sh
+  - mkdir -p /home/pibot/Desktop
+  - chown -R pibot:pibot /home/pibot/pibot_thoughts.log /home/pibot/pibot_thought.sh /home/pibot/Desktop
