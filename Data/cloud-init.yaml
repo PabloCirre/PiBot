@@ -34,6 +34,22 @@ users:
     lock_passwd: false
 
 write_files:
+  - path: /home/pibot/pibot_thought.sh
+    permissions: "0755"
+    owner: pibot:pibot
+    content: |
+      #!/bin/bash
+      # PiBot Autonomous Thought Trigger
+      BNAME=$(hostname)
+      TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
+      echo "[$TIMESTAMP] Starting autonomous thought cycle..." >> /home/pibot/pibot_thoughts.log
+      curl -s -X POST http://localhost:11434/api/generate -d "{
+        \"model\": \"$BNAME\",
+        \"prompt\": \"Status check: You are running autonomously. Review your logs and current state. If you have any suggestions for optimization or a creative thought, express it briefly. If everything is fine, just acknowledge operational stability.\",
+        \"stream\": false
+      }" | jq -r '.response' >> /home/pibot/pibot_thoughts.log 2>&1
+      echo -e "\n---" >> /home/pibot/pibot_thoughts.log
+
   - path: /etc/systemd/system/openclaw.service
     content: |
       [Unit]
@@ -55,7 +71,7 @@ write_files:
 
 runcmd:
   - echo 'pibot:pibot' | chpasswd
-  - # Install Node.js v20 (NodeSource)
+  -  # Install Node.js v20 (NodeSource)
   - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
   - apt-get install -y nodejs
   - mkdir -p /home/pibot/.vnc /home/pibot/.config/autostart /home/pibot/.openclaw
@@ -102,24 +118,24 @@ runcmd:
     #!/bin/sh
     unset SESSION_MANAGER
     unset DBUS_SESSION_BUS_ADDRESS
-    /usr/bin/startxfce4 &
+    # Minimalist Kiosk WM
+    xfwm4 &
+    xfsettingsd &
+    # Disable Screen Blanking / Power Saving
+    xset s off
+    xset -dpms
+    xset s noblank
+    # Ensure background is clean (Black/Neural)
+    xsetroot -solid "#0a0a0a"
+    # Show OpenClaw UI as the main interface
+    google-chrome --kiosk --no-first-run --simulate-outdated-no-auce http://localhost:18789 &
     EOF
   - |
     cat <<EOF > /home/pibot/.config/autostart/openclaw-ui.desktop
     [Desktop Entry]
     Type=Application
     Name=OpenClaw Dashboard
-    Exec=google-chrome --app=http://localhost:18789 --no-first-run
-    Hidden=false
-    NoDisplay=false
-    X-GNOME-Autostart-enabled=true
-    EOF
-  - |
-    cat <<EOF > /home/pibot/.config/autostart/chrome-pibot.desktop
-    [Desktop Entry]
-    Type=Application
-    Name=PiBot Club
-    Exec=google-chrome --no-first-run --start-maximized https://pibot.club/
+    Exec=google-chrome --kiosk --no-first-run http://localhost:18789
     Hidden=false
     NoDisplay=false
     X-GNOME-Autostart-enabled=true
@@ -200,3 +216,8 @@ runcmd:
   - systemctl daemon-reload
   - systemctl enable openclaw.service
   - systemctl start openclaw.service
+  -  # 10. Autonomous Cron (5 minutes)
+  - apt-get install -y jq
+  - (crontab -u pibot -l 2>/dev/null; echo "*/5 * * * * /home/pibot/pibot_thought.sh") | crontab -u pibot -
+  - touch /home/pibot/pibot_thoughts.log
+  - chown pibot:pibot /home/pibot/pibot_thoughts.log /home/pibot/pibot_thought.sh

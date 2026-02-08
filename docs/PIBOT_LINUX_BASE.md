@@ -1,4 +1,4 @@
-# PiBot Linux System Base (V4.6) - AI Edge Edition
+# PiBot Linux System Base (V4.7) - Minimalist Kiosk Edition
 
 Official URL: **[https://pibot.club/](https://pibot.club/)**
 
@@ -8,9 +8,9 @@ This document defines the standard software and configuration stack for all PiBo
 
 - **Distribution:** Ubuntu 24.04 LTS (Noble Numbat)
 - **User:** `pibot` (Sudoer, Password: `pibot`)
-- **Desktop:** XFCE4 (High Performance / Low Latency)
+- **Desktop:** XFCE4 (Minimalist Kiosk Profile)
 - **Hardware Profile:** 4GB RAM / 2 vCPU / 30GB Disk (AI-Ready Standard)
-- **Auto-Activation:** Google Chrome starts automatically on login pointing to the official hub at **[pibot.club](https://pibot.club/)**.
+- **Kiosk Mode:** Google Chrome starts automatically in `--kiosk` mode pointing to the local **OpenClaw Dashboard** (`http://localhost:18789`). The interface is locked to the AI's control center.
 
 ## 🧠 Neural Logic (AI Stack)
 
@@ -30,6 +30,7 @@ PiBot is the reference virtualization layer for **[OpenClaw](https://docs.opencl
 - **Auto-Installation:** OpenClaw is pre-installed and globally available via `openclaw`.
 - **Isolation:** Each PiBot instance has a unique identity, IP, and hardware fingerprint.
 - **Node.js Stack:** Powered by Node.js 22+ for maximum performance in agent logic.
+- **Autonomous Monologue (Cron):** A background script (`pibot_thought.sh`) triggers the LLM every 5 minutes to ensure continuous operational check-ins.
 
 ## 📡 Remote Access & Hardware Passthrough
 
