@@ -48,9 +48,9 @@ function connectBot(ip) {
 
 async function launchBot() {
     hideCreationModal();
-    log("[BIR] Requesting standard Rapid Birth from Genesis Core...");
+    log("[BIR] Requesting standard 4GB/30GB Rapid Birth...");
     try {
-        const response = await fetch('/api/launch', { method: 'POST' });
+        const response = await fetch('/api/launch?ram=4096M&disk=30G', { method: 'POST' });
         if (response.ok) log("[BIR] Rapid morphogenesis propagation initiated.");
     } catch (e) {
         log("❌ [ERR] Neural Link Failure during birth request.");
@@ -58,10 +58,15 @@ async function launchBot() {
 }
 
 async function launchCustom() {
-    const ram = document.getElementById('ram-slider').value;
-    const disk = document.getElementById('disk-slider').value;
+    let ram = document.getElementById('ram-slider').value;
+    let disk = document.getElementById('disk-slider').value;
+
+    // Ensure units are present
+    if (!ram.toString().includes('M')) ram = ram + 'M';
+    if (!disk.toString().includes('G')) disk = disk + 'G';
+
     hideCreationModal();
-    log(`[BIR] Requesting Specialized Birth: ${ram}MB RAM / ${disk}GB DISK...`);
+    log(`[BIR] Requesting Specialized Birth: ${ram} RAM / ${disk} DISK...`);
     try {
         const response = await fetch('/api/launch', {
             method: 'POST',
@@ -72,6 +77,21 @@ async function launchCustom() {
     } catch (e) {
         log("❌ [ERR] Connection failure on specialized birth sequence.");
     }
+}
+
+function showDnaManifest() {
+    const specs = "🧬 PIBOT NEURAL DNA MANIFEST (v4.7)\n" +
+        "------------------------------------\n" +
+        "🖥️ OS: Ubuntu 24.04 LTS (Noble Numbat)\n" +
+        "🧠 Brain: Ollama / Gemma 3 (4B Edition)\n" +
+        "👁️ Vision: Moondream 2 (Native Capable)\n" +
+        "🤖 Agent: OpenClaw 1.0 (Local Neural Node)\n" +
+        "🎙️ STT/TTS: Faster-Whisper & Piper Neural\n" +
+        "🌐 Web: Chrome Stable / noVNC Proxy\n" +
+        "⚡ Accelerator: Local CPU Parallel Engine\n" +
+        "📦 Storage: 30GB Dynamic Allocation\n\n" +
+        "System is UP-TO-DATE and ready for genesis.";
+    alert(specs);
 }
 
 function updateRange(type) {
@@ -116,7 +136,7 @@ function renderBots() {
     grid.innerHTML = bots.map((bot, index) => {
         const progress = bot.progress || 0;
         const isRunning = bot.status === "Running";
-        const isStarting = bot.status === "Starting";
+        const isTransitioning = bot.status.includes("Starting") || bot.status.includes("Stopping");
 
         let displayName = bot.name.replace(/^pibot-/, '').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
@@ -136,6 +156,7 @@ function renderBots() {
                             <div class="flex items-center gap-1.5">
                                 <span class="w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-teal-400' : 'bg-yellow-400'} shadow-[0_0_5px_currentColor]"></span>
                                 <p class="text-[8px] ${isRunning ? 'text-teal-400' : 'text-yellow-400'} uppercase tracking-[0.2em] font-black">${bot.status}</p>
+                                ${isRunning ? `<span class="text-[8px] text-gray-500 font-bold ml-1 opacity-60">⏱️ ${bot.uptime || '0m'}</span>` : ''}
                             </div>
                         </div>
                     </div>
@@ -155,16 +176,16 @@ function renderBots() {
                 <!-- Action Matrix -->
                 <div class="grid grid-cols-2 gap-3 relative z-10">
                     ${isRunning ? `
-                        <button onclick="botAction('${bot.name}', 'stop')" class="action-btn btn-stop shadow-lg shadow-yellow-500/5">
+                        <button onclick="botAction('${bot.name}', 'stop')" class="action-btn btn-stop shadow-lg shadow-yellow-500/5" ${isTransitioning ? 'disabled opacity-50' : ''}>
                             <span class="text-[12px]">■</span> STOP
                         </button>
                     ` : `
-                        <button onclick="botAction('${bot.name}', 'start')" class="action-btn btn-start shadow-lg shadow-teal-500/5" ${isStarting ? 'disabled opacity-50' : ''}>
+                        <button onclick="botAction('${bot.name}', 'start')" class="action-btn btn-start shadow-lg shadow-teal-500/5" ${isTransitioning ? 'disabled opacity-50' : ''}>
                             <span class="text-[12px]">▶</span> START
                         </button>
                     `}
                     
-                    <button onclick="connectBot('${bot.ip}')" class="action-btn btn-connect shadow-lg shadow-blue-500/5" ${!isRunning ? 'disabled opacity-50' : ''}>
+                    <button onclick="connectBot('${bot.ip}')" class="action-btn btn-connect shadow-lg shadow-blue-500/5" ${!isRunning || isTransitioning ? 'disabled opacity-50' : ''}>
                         <span class="text-[12px]">🔗</span> CONNECT
                     </button>
                     

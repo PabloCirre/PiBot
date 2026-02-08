@@ -46,6 +46,7 @@ namespace PiBotControlCenter
         public string status { get; set; }
         public string ip { get; set; }
         public int progress { get; set; }
+        public string uptime { get; set; }
     }
 
     public class SystemStatus {
@@ -180,6 +181,8 @@ namespace PiBotControlCenter
         private List<string> _webLogs = new List<string>();
         private int _maxWebLogs = 100;
         private System.Windows.Threading.DispatcherTimer _pollTimer;
+        private Border _miniEgg;
+        private TextBlock _updateBadge;
         
         private Brush bmoTeal = new SolidColorBrush(Color.FromRgb(181, 226, 213));
         private Brush bmoDark = new SolidColorBrush(Color.FromRgb(30, 33, 39));
@@ -284,16 +287,25 @@ namespace PiBotControlCenter
             Grid.SetColumn(sidebar, 1);
             content.Children.Add(sidebar);
 
-            // 4. Console
+            // 4. Console Container (Grid to allow overlaying)
+            Grid consoleContainer = new Grid();
+            Grid.SetRow(consoleContainer, 3);
+
             consoleLog = new TextBox() { 
                 Background = bmoDark, Foreground = Brushes.LimeGreen, BorderThickness = new Thickness(0, 1, 0, 0), BorderBrush = Brushes.Black,
-                FontFamily = new FontFamily("Consolas"), FontSize = 11, IsReadOnly = true, Padding = new Thickness(10), VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+                FontFamily = new FontFamily("Consolas"), FontSize = 11, IsReadOnly = true, Padding = new Thickness(10, 10, 50, 10), // Extra right padding for egg
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
             };
+            consoleContainer.Children.Add(consoleLog);
+
+            // Mini Egg Badge
+            _miniEgg = CreateMiniEgg();
+            consoleContainer.Children.Add(_miniEgg);
 
             mainGrid.Children.Add(titleBar); Grid.SetRow(titleBar, 0);
             mainGrid.Children.Add(globalProgress);
             mainGrid.Children.Add(content); Grid.SetRow(content, 2);
-            mainGrid.Children.Add(consoleLog); Grid.SetRow(consoleLog, 3);
+            mainGrid.Children.Add(consoleContainer);
 
             this.Content = mainGrid;
 
@@ -348,22 +360,25 @@ namespace PiBotControlCenter
                             string bIp = parts[2].Trim();
                             int prog = 0;
 
-                            if (state == "Running") {
-                                prog = EstimateProgress(bName);
-                            } else if (state == "Starting") {
-                                prog = 10;
-                            } else if (state == "Stopped") {
-                                prog = 0;
-                            } else {
-                                prog = 5; // Unknown/Transition
-                            }
+                             string uptimeStr = "0m";
+                             if (state == "Running") {
+                                 prog = EstimateProgress(bName);
+                                 uptimeStr = GetUptime(bName);
+                             } else if (state == "Starting") {
+                                 prog = 10;
+                             } else if (state == "Stopped") {
+                                 prog = 0;
+                             } else {
+                                 prog = 5; // Unknown/Transition
+                             }
 
-                            botList.Add(new { 
-                                name = bName, 
-                                status = state, 
-                                ip = bIp, 
-                                progress = prog 
-                            });
+                             botList.Add(new { 
+                                 name = bName, 
+                                 status = state, 
+                                 ip = bIp, 
+                                 progress = prog,
+                                 uptime = uptimeStr
+                             });
                         }
                     }
 
@@ -397,6 +412,24 @@ namespace PiBotControlCenter
                 _webLogs.Clear(); // Consumed by the web UI for incrementals
                 return copy;
             }
+        }
+
+        private string GetUptime(string name) {
+            try {
+                Process p = new Process();
+                p.StartInfo.FileName = multipassPath;
+                p.StartInfo.Arguments = "exec " + name + " -- uptime -p";
+                p.StartInfo.RedirectStandardOutput = true;
+                p.StartInfo.UseShellExecute = false;
+                p.StartInfo.CreateNoWindow = true;
+                p.Start();
+                string output = p.StandardOutput.ReadToEnd().Trim();
+                p.WaitForExit();
+
+                // Format: "up 1 hour, 11 minutes" -> "1h 11m"
+                string clean = output.Replace("up ", "").Replace(" hours", "h").Replace(" hour", "h").Replace(" minutes", "m").Replace(" minute", "m").Replace(",", "");
+                return clean;
+            } catch { return "0m"; }
         }
 
         private int EstimateProgress(string name) {
@@ -526,8 +559,8 @@ namespace PiBotControlCenter
                     jsonResponse = "{\"msg\": \"Command Sent\"}";
                 }
             } else if (path == "/api/launch") {
-                string ram = req.QueryString["ram"] ?? "1024M";
-                string disk = req.QueryString["disk"] ?? "10G";
+                string ram = req.QueryString["ram"] ?? "4096M";
+                string disk = req.QueryString["disk"] ?? "30G";
 
                 // If it's a POST request, try to read from the body
                 if (req.HttpMethod == "POST" && req.HasEntityBody) {
@@ -638,6 +671,10 @@ namespace PiBotControlCenter
             
             ThreadPool.QueueUserWorkItem(s => {
                 try {
+                    // Ensure units are present for Multipass
+                    if (!ram.EndsWith("M") && !ram.EndsWith("G") && !ram.EndsWith("MiB") && !ram.EndsWith("GiB")) ram += "M";
+                    if (!disk.EndsWith("M") && !disk.EndsWith("G") && !disk.EndsWith("MiB") && !disk.EndsWith("GiB")) disk += "G";
+
                     string cloudInitPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "cloud-init.yaml");
                     string cmd = "launch lts --name " + instanceName + " --cpus 2 --memory " + ram + " --disk " + disk;
                     if (File.Exists(cloudInitPath)) cmd += " --cloud-init \"" + cloudInitPath + "\"";
@@ -698,7 +735,7 @@ namespace PiBotControlCenter
                     else if (maxBots < 2) _ramLabel.Foreground = Brushes.Orange;
                     else _ramLabel.Foreground = new SolidColorBrush(Color.FromRgb(50, 215, 75));
 
-                    _ramLabel.Text = string.Format("🧠 RAM: {0:N0}MB FREE", mb);
+                    _ramLabel.Text = string.Format("🧠 RAM: {0:N0}MB FREE (4GB REQ)", mb);
                 });
             }
         }
@@ -716,18 +753,27 @@ namespace PiBotControlCenter
                         this.Dispatcher.Invoke(() => {
                             botList.Children.Clear();
                             string[] lines = output.Split('\n');
+                            int botCount = 0;
                             foreach (string line in lines) {
                                 if (string.IsNullOrEmpty(line) || line.StartsWith("Name")) continue;
                                 string[] parts = line.Split(',');
-                                if (parts[0].Contains("pibot")) AddBotCard(parts[0], parts[1], parts[2]);
+                                if (parts[0].Contains("pibot")) {
+                                    botCount++;
+                                    string bName = parts[0].Trim();
+                                    string state = parts[1].Trim();
+                                    string bIp = parts[2].Trim();
+                                    string ut = (state == "Running") ? GetUptime(bName) : "";
+                                    AddBotCard(bName, state, bIp, ut);
+                                }
                             }
+                            if (botCount == 0) ShowEmptyState();
                         });
                     }
                 } catch { }
             });
         }
 
-        private void AddBotCard(string name, string status, string ip) {
+        private void AddBotCard(string name, string status, string ip, string uptime) {
             Border card = new Border() { 
                 Background = Brushes.White, 
                 CornerRadius = new CornerRadius(15), 
@@ -759,13 +805,16 @@ namespace PiBotControlCenter
             else if (lowerStatus == "deleted") { humanStatus = "💀 Deleted (Dead)"; statusColor = "#7F8C8D"; }
             else { humanStatus = "❓ Unknown (" + status + ")"; statusColor = "#95A5A6"; }
 
-            info.Children.Add(new TextBlock() { Text = displayName, FontWeight = FontWeights.Bold, FontSize = 16 });
-            info.Children.Add(new TextBlock() { 
-                Text = humanStatus + " • " + (ip == "" ? "No IP" : ip), 
-                FontSize = 11, 
-                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(statusColor)),
-                FontWeight = FontWeights.SemiBold
-            });
+            info.Children.Add(new TextBlock() { Text = displayName.ToUpper(), FontSize = 14, FontWeight = FontWeights.Bold, FontFamily = new FontFamily("Segoe UI Black") });
+            
+            StackPanel statusPanel = new StackPanel() { Orientation = Orientation.Horizontal };
+            statusPanel.Children.Add(new TextBlock() { Text = status, FontSize = 11, Foreground = status == "Running" ? Brushes.SeaGreen : Brushes.Orange, FontWeight = FontWeights.Bold });
+            if (!string.IsNullOrEmpty(uptime)) {
+                statusPanel.Children.Add(new TextBlock() { Text = " • ⏱️ " + uptime, FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(5, 0, 0, 0) });
+            }
+            info.Children.Add(statusPanel);
+            
+            info.Children.Add(new TextBlock() { Text = "IP: " + (string.IsNullOrEmpty(ip) ? "Offline" : ip), FontSize = 10, Foreground = Brushes.Gray });
             
             ProgressBar pbar = new ProgressBar() { Height = 3, Margin = new Thickness(0, 10, 0, 0), Minimum = 0, Maximum = 100, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = accentColor };
             if (status.ToLower().Contains("starting") || status.ToLower().Contains("stopping")) pbar.IsIndeterminate = true;
@@ -775,17 +824,31 @@ namespace PiBotControlCenter
             grid.Children.Add(info);
 
             StackPanel btnArea = new StackPanel() { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            bool isRunning = status.ToLower() == "running";
+            bool isTransitioning = status.ToLower().Contains("start") || status.ToLower().Contains("stop");
+
             Button btnView = CreateActionBtn("VIEW", new SolidColorBrush(Color.FromRgb(0, 184, 187))); // Nintendo Teal/Blue
+            btnView.IsEnabled = isRunning;
+            if (!isRunning) btnView.Opacity = 0.5;
+
             btnView.Click += (s, e) => { 
                 if (ip != "" && ip != "No IP") {
-                   // Point directly to vnc.html with autoconnect
-                   LaunchAppBrowser("http://" + ip + ":6080/vnc.html?autoconnect=true&resize=scale");
+                   // Ultra-clean VNC URL: Autoconnect, Hidden Sidebar, Scaled to Fit, No Logging
+                   string cleanVNC = string.Format("http://{0}:6080/vnc.html?autoconnect=true&password=pibot&resize=scale&sidebar=collapsed&logging=off&reconnect=true", ip);
+                   LaunchAppBrowser(cleanVNC);
                 }
             };
-            Button btnToggle = CreateActionBtn(status.ToLower() == "running" ? "STOP" : "START", status.ToLower() == "running" ? new SolidColorBrush(Color.FromRgb(255, 69, 58)) : new SolidColorBrush(Color.FromRgb(50, 215, 75))); // Neon Red / Green
+
+            Button btnToggle = CreateActionBtn(isRunning ? "STOP" : "START", isRunning ? new SolidColorBrush(Color.FromRgb(255, 69, 58)) : new SolidColorBrush(Color.FromRgb(50, 215, 75))); // Neon Red / Green
+            if (isTransitioning) {
+                btnToggle.IsEnabled = false;
+                btnToggle.Opacity = 0.5;
+            }
+
             btnToggle.Click += (s, e) => {
                 pbar.IsIndeterminate = true;
-                RunMultipass(status.ToLower() == "running" ? "stop" : "start", name);
+                btnToggle.IsEnabled = false;
+                RunMultipass(isRunning ? "stop" : "start", name);
             };
             
             // Kill Button (Skull)
@@ -880,14 +943,19 @@ namespace PiBotControlCenter
             if (!instanceName.StartsWith("pibot-")) instanceName = "pibot-" + instanceName;
 
             Log("✨ Initiating New Deployment: " + friendlyName);
-            Log("⏳ Requesting resources (2CPU, 1024MB RAM, LTS Image)...");
+            Log("⏳ Requesting resources (2CPU, 4096MB RAM, 30GB DISK)...");
             globalProgress.IsIndeterminate = true;
+            
+            // Immediate UI Feedback: Add a temporary card or force refresh
+            this.Dispatcher.Invoke(() => {
+                AddBotCard(instanceName, "Deploying...", "Genetic sequence start", "");
+            });
             
             ThreadPool.QueueUserWorkItem(s => {
                 try {
                     // Robust Launch Command: Explicit LTS, Disk Limit, Cloud-Init
                     string cloudInitPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "cloud-init.yaml");
-                    string cmd = "launch lts --name " + instanceName + " --cpus 2 --memory 1024M --disk 10G";
+                    string cmd = "launch lts --name " + instanceName + " --cpus 2 --memory 4096M --disk 30G";
                     
                     if (File.Exists(cloudInitPath)) {
                         cmd += " --cloud-init \"" + cloudInitPath + "\"";
@@ -904,26 +972,64 @@ namespace PiBotControlCenter
                     psi.UseShellExecute = false;
 
                     using (Process p = Process.Start(psi)) {
-                        // Async read of output/error to prevent deadlocks
                         p.OutputDataReceived += (proc, outLine) => { if (!string.IsNullOrEmpty(outLine.Data)) Log(outLine.Data); };
                         p.ErrorDataReceived += (proc, errLine) => { if (!string.IsNullOrEmpty(errLine.Data)) Log("❌ MP Error: " + errLine.Data); };
 
                         p.BeginOutputReadLine();
                         p.BeginErrorReadLine();
 
-                        // Cloud-Init installing XFCE takes 5-8 minutes. Increase timeout significantly.
-                        Log("⏳ Installing Linux OS & GUI... (This might take ~5-10 mins)");
-                        bool finished = p.WaitForExit(900000); // 15 minute timeout security
-                        if (!finished) {
-                            Log("⚠️ Launch taking too long! It might still be installing in background.");
-                            // Do NOT kill the process, let it finish. Just stop waiting on UI.
+                        Log("⏳ Deploying PiBot Prime Core... (Waiting for VM)");
+                        
+                        // Start a monitoring timer to refresh the UI while we wait
+                        System.Timers.Timer refreshTimer = new System.Timers.Timer(5000);
+                        refreshTimer.Elapsed += (ts, te) => this.Dispatcher.Invoke(() => RefreshBots());
+                        refreshTimer.Start();
+
+                        bool finished = p.WaitForExit(600000); // 10 mins for VM launch
+                        refreshTimer.Stop();
+                        refreshTimer.Dispose();
+                        
+                        if (finished && p.ExitCode == 0) {
+                            Log("🧬 VM is alive. Sequence starting: Installing Neural Stack (Cloud-Init)...");
+                            
+                            // Proactive wait for cloud-init completion
+                            bool isReady = false;
+                            int retries = 0;
+                            while (!isReady && retries < 60) { // 20 minutes total polling
+                                try {
+                                    ProcessStartInfo checkPsi = new ProcessStartInfo(multipassPath, string.Format("exec {0} -- cloud-init status", instanceName));
+                                    checkPsi.RedirectStandardOutput = true;
+                                    checkPsi.UseShellExecute = false;
+                                    checkPsi.CreateNoWindow = true;
+                                    using (Process checkP = Process.Start(checkPsi)) {
+                                        string output = checkP.StandardOutput.ReadToEnd();
+                                        if (output.Contains("status: done")) {
+                                            isReady = true;
+                                            break;
+                                        }
+                                        if (output.Contains("status: error")) {
+                                            Log("⚠️ Cloud-Init reported an error, but proceeding to finish.");
+                                            isReady = true; 
+                                            break;
+                                        }
+                                    }
+                                } catch { }
+                                Thread.Sleep(20000); // Check every 20s
+                                retries++;
+                                if (retries % 3 == 0) Log(string.Format("⏳ Sequencing DNA... ({0}s elapsed)", retries * 20));
+                            }
+                            
+                            Log("✅ " + friendlyName + " HAS HATCHED!");
+                            PlayHatchSound();
                         } else {
-                            if (p.ExitCode == 0) Log("✅ " + friendlyName + " system ready!");
-                            else Log("⚠️ Launch finished with Exit Code: " + p.ExitCode);
+                            Log("⚠️ Launch finished with status: " + (finished ? "Code " + p.ExitCode : "TIMEOUT"));
                         }
                     }
                     
-                    this.Dispatcher.Invoke(() => { globalProgress.IsIndeterminate = false; RefreshBots(); });
+                    this.Dispatcher.Invoke(() => { 
+                        globalProgress.IsIndeterminate = false; 
+                        RefreshBots(); // Final refresh to settle state
+                    });
                 } catch (Exception ex) { 
                     Log("💥 CRITICAL LAUNCH ERROR: " + ex.Message);
                     this.Dispatcher.Invoke(() => globalProgress.IsIndeterminate = false); 
@@ -964,6 +1070,156 @@ namespace PiBotControlCenter
                     this.Dispatcher.Invoke(() => Application.Current.Shutdown());
                 });
             }
+        }
+        private void PlayHatchSound() {
+            try {
+                this.Dispatcher.Invoke(() => {
+                    string soundPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "assets", "microwave-timer.mp3");
+                    if (!File.Exists(soundPath)) {
+                        // Try upward search if debugging
+                        soundPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "assets", "microwave-timer.mp3");
+                    }
+
+                    if (File.Exists(soundPath)) {
+                        var player = new System.Windows.Media.MediaPlayer();
+                        player.Open(new Uri(soundPath));
+                        player.Volume = 1.0;
+                        player.Play();
+                    } else {
+                        System.Media.SystemSounds.Exclamation.Play(); // Fallback
+                    }
+                });
+            } catch { }
+        }
+
+        private Border CreateMiniEgg() {
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string cloudInitPath = System.IO.Path.Combine(baseDir, "Data", "cloud-init.yaml");
+            
+            // Dev environment fallback
+            if (!File.Exists(cloudInitPath)) {
+                cloudInitPath = System.IO.Path.Combine(baseDir, "..", "..", "Data", "cloud-init.yaml");
+            }
+
+            if (!File.Exists(cloudInitPath)) return new Border() { Visibility = Visibility.Collapsed };
+
+            Border egg = new Border() {
+                Width = 35, Height = 45, 
+                VerticalAlignment = VerticalAlignment.Bottom, 
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 0, 15, 15),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = "DNA Manifest (Click to view specs)"
+            };
+
+            Grid g = new Grid();
+            System.Windows.Shapes.Path shell = new System.Windows.Shapes.Path() {
+                Fill = new SolidColorBrush(Color.FromRgb(245, 245, 245)),
+                Stroke = Brushes.Gray,
+                StrokeThickness = 1,
+                Data = Geometry.Parse("M 17,0 C 5,0 0,15 0,25 C 0,35 7,45 17,45 C 27,45 34,35 34,25 C 34,15 29,0 17,0 Z")
+            };
+            
+            _updateBadge = new TextBlock() { 
+                Text = "⚡DNA", FontSize = 7, FontWeight = FontWeights.Bold, 
+                Foreground = Brushes.White, Background = Brushes.Orange,
+                Padding = new Thickness(2, 0, 2, 0),
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Bottom,
+                Margin = new Thickness(0, 0, 0, 5),
+                Visibility = Visibility.Visible // Always shows health for now
+            };
+
+            g.Children.Add(shell);
+            g.Children.Add(_updateBadge);
+            egg.Child = g;
+
+            egg.MouseDown += (s, e) => ShowDnaManifest();
+
+            // Suttle hover effect
+            egg.MouseEnter += (s, e) => shell.Fill = Brushes.White;
+            egg.MouseLeave += (s, e) => shell.Fill = new SolidColorBrush(Color.FromRgb(245, 245, 245));
+
+            return egg;
+        }
+
+        private void ShowDnaManifest() {
+            string specs = "🧬 PIBOT NEURAL DNA MANIFEST (v4.7)\n" +
+                          "------------------------------------\n" +
+                          "🖥️ OS: Ubuntu 24.04 LTS (Noble Numbat)\n" +
+                          "🧠 Brain: Ollama / Gemma 3 (4B Edition)\n" +
+                          "👁️ Vision: Moondream 2 (Native Capable)\n" +
+                          "🤖 Agent: OpenClaw 1.0 (Local Neural Node)\n" +
+                          "🎙️ STT/TTS: Faster-Whisper & Piper Neural\n" +
+                          "🌐 Web: Chrome Stable / noVNC Proxy\n" +
+                          "⚡ Accelerator: Local CPU Parallel Engine\n" +
+                          "📦 Storage: 30GB Dynamic Allocation\n\n" +
+                          "System is UP-TO-DATE and ready for genesis.";
+            
+            MessageBox.Show(specs, "NEURAL DNA SPECS", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void ShowEmptyState() {
+            StackPanel empty = new StackPanel() { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 50, 0, 0) };
+            
+            // Vector Egg Drawing
+            Grid eggContainer = new Grid() { Width = 120, Height = 160 };
+            
+            // The Egg Shell
+            System.Windows.Shapes.Path eggShell = new System.Windows.Shapes.Path() {
+                Fill = new LinearGradientBrush(Color.FromRgb(240, 240, 240), Color.FromRgb(210, 210, 210), 45),
+                Stroke = Brushes.LightGray,
+                StrokeThickness = 2,
+                Data = Geometry.Parse("M 60,0 C 20,0 0,60 0,100 C 0,140 30,160 60,160 C 90,160 120,140 120,100 C 120,60 100,0 60,0 Z")
+            };
+            
+            // The Logo inside (Procedural BMO-style face)
+            Viewbox logoBox = new Viewbox() { Width = 50, Height = 50, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 40, 0, 0) };
+            logoBox.Child = CreateBmoFace(50, 50);
+
+            eggContainer.Children.Add(eggShell);
+            eggContainer.Children.Add(logoBox);
+            
+            empty.Children.Add(eggContainer);
+            
+            // Progress Bar (Incubation Bar) - Only visible when hatching
+            if (globalProgress != null && globalProgress.IsIndeterminate) {
+                ProgressBar incubationBar = new ProgressBar() { 
+                    Width = 150, Height = 6, Margin = new Thickness(0, 20, 0, 0),
+                    Foreground = new SolidColorBrush(Color.FromRgb(255, 126, 0)), // Heat Orange
+                    Background = new SolidColorBrush(Color.FromRgb(240, 240, 240)),
+                    BorderThickness = new Thickness(0),
+                    IsIndeterminate = true
+                };
+                
+                // Add "Warming Up" label
+                TextBlock warmTxt = new TextBlock() { 
+                    Text = "INCUBATING NEURAL DNA...", 
+                    FontSize = 9, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(255, 126, 0)),
+                    HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 5, 0, 0)
+                };
+                
+                empty.Children.Add(incubationBar);
+                empty.Children.Add(warmTxt);
+            } else {
+                empty.Children.Add(new TextBlock() { 
+                    Text = "GENESIS SYSTEM READY", 
+                    FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brushes.Gray, 
+                    HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 20, 0, 0) 
+                });
+                empty.Children.Add(new TextBlock() { 
+                    Text = "Hatch your first PiBot to begin automation", 
+                    FontSize = 12, Foreground = Brushes.Silver, 
+                    HorizontalAlignment = HorizontalAlignment.Center 
+                });
+            }
+
+            botList.Children.Add(empty);
+            
+            // Simple Breath Animation
+            DoubleAnimation anim = new DoubleAnimation(0.95, 1.05, new Duration(TimeSpan.FromSeconds(2))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+            eggContainer.RenderTransform = new ScaleTransform(1, 1, 60, 80);
+            eggContainer.RenderTransform.BeginAnimation(ScaleTransform.ScaleXProperty, anim);
+            eggContainer.RenderTransform.BeginAnimation(ScaleTransform.ScaleYProperty, anim);
         }
     }
 }

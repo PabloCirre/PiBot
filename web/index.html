@@ -133,6 +133,20 @@
         .action-btn:active {
             transform: scale(0.95) translateY(0);
         }
+
+        @keyframes breath {
+
+            0%,
+            100% {
+                transform: scale(1);
+                filter: brightness(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+                filter: brightness(1.2);
+            }
+        }
     </style>
 </head>
 
@@ -166,11 +180,26 @@
 
     <!-- Main Content Area -->
     <main class="flex-1 overflow-y-auto px-4 pb-4 relative">
-        <div id="empty-state" class="hidden flex flex-col items-center justify-center py-32 opacity-20">
-            <div class="w-16 h-16 mb-6 text-teal-400 text-center">
-                <img src="assets/pibot_icon.png" class="w-24 h-24 inline-block grayscale opacity-30 mb-6">
-                <p class="text-xs uppercase font-black tracking-[0.8em] text-white">Neural Network Offline</p>
+        <div id="empty-state" class="hidden flex flex-col items-center justify-center py-20">
+            <!-- Genesis Egg Animation -->
+            <div class="relative w-48 h-64 mb-10 group cursor-pointer" onclick="showCreationModal()">
+                <!-- The Glow -->
+                <div class="absolute inset-0 bg-teal-500/20 blur-[100px] rounded-full animate-pulse"></div>
+                <!-- The Egg Surface -->
+                <div
+                    class="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md rounded-[50%_50%_50%_50%_/_60%_60%_40%_40%] border border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] flex items-center justify-center overflow-hidden animate-[breath_4s_ease-in-out_infinite]">
+                    <img src="assets/pibot_icon.png"
+                        class="w-16 h-16 opacity-40 group-hover:opacity-100 transition-opacity duration-500">
+                    <!-- DNA Strands decoration -->
+                    <div class="absolute inset-0 opacity-10 pointer-events-none">
+                        <div class="absolute top-0 left-1/2 w-px h-full bg-white/50 rotate-45"></div>
+                        <div class="absolute top-0 left-1/2 w-px h-full bg-white/50 -rotate-45"></div>
+                    </div>
+                </div>
             </div>
+            <p class="text-xs uppercase font-black tracking-[1em] text-teal-400 mb-2">Genesis System Ready</p>
+            <p class="text-[10px] text-gray-500 uppercase tracking-widest">Hatch your first PiBot to begin automation
+            </p>
         </div>
 
         <div id="bot-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-2">
@@ -200,7 +229,7 @@
                         <button onclick="launchBot()"
                             class="px-12 py-5 bg-teal-500 text-black font-black text-xs tracking-widest rounded-full hover:bg-white active:scale-95 transition-all shadow-xl">RAPID
                             BIRTH</button>
-                        <p class="text-[9px] text-gray-500 mt-6 font-medium italic">Auto-Configuration: 1GB RAM / 10GB
+                        <p class="text-[9px] text-gray-500 mt-6 font-medium italic">Auto-Configuration: 4GB RAM / 30GB
                             HDD</p>
                     </div>
                     <!-- Right: Metabolic DNA -->
@@ -216,10 +245,10 @@
                                         class="text-[10px] font-bold text-gray-300 uppercase tracking-widest">Cognitive
                                         Buffer (RAM)</label>
                                     <div class="flex items-baseline gap-1"><span id="ram-val"
-                                            class="text-2xl font-black text-white">1024</span><span
+                                            class="text-2xl font-black text-white">4096</span><span
                                             class="text-[10px] text-gray-600 font-bold uppercase">MB</span></div>
                                 </div>
-                                <input type="range" id="ram-slider" min="512" max="4096" step="256" value="1024"
+                                <input type="range" id="ram-slider" min="512" max="16384" step="256" value="4096"
                                     oninput="updateRange('ram')"
                                     class="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-teal-400">
                             </div>
@@ -228,10 +257,10 @@
                                     <label class="text-[10px] font-bold text-gray-300 uppercase tracking-widest">Memory
                                         Storage (HDD)</label>
                                     <div class="flex items-baseline gap-1"><span id="disk-val"
-                                            class="text-2xl font-black text-white">10</span><span
+                                            class="text-2xl font-black text-white">30</span><span
                                             class="text-[10px] text-gray-600 font-bold uppercase">GB</span></div>
                                 </div>
-                                <input type="range" id="disk-slider" min="5" max="100" step="1" value="10"
+                                <input type="range" id="disk-slider" min="10" max="200" step="5" value="30"
                                     oninput="updateRange('disk')"
                                     class="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500">
                             </div>
@@ -266,6 +295,19 @@
         <div class="flex-1 p-6 font-mono text-[10px] overflow-y-auto text-teal-400/80 leading-relaxed scrollbar-hide"
             id="console-log">
             <p class="opacity-30 italic">Establishing data uplink...</p>
+        </div>
+
+        <!-- DNA Manifest Egg (Mini Egg) -->
+        <div class="absolute bottom-4 right-4 group cursor-pointer" onclick="showDnaManifest()">
+            <div
+                class="w-8 h-10 bg-white/10 hover:bg-white/20 border border-white/20 rounded-[50%_50%_50%_50%_/_60%_60%_40%_40%] transition-all flex flex-col items-center justify-center shadow-lg">
+                <span class="text-[6px] font-black text-white bg-orange-500 px-1 rounded-sm mb-1">⚡DNA</span>
+                <div class="w-1.5 h-1.5 bg-teal-400 rounded-full animate-pulse"></div>
+            </div>
+            <div
+                class="absolute bottom-full right-0 mb-2 hidden group-hover:block bg-black/90 border border-white/10 p-2 rounded text-[8px] whitespace-nowrap text-gray-400">
+                Genetic Manifest v4.7
+            </div>
         </div>
     </div>
 

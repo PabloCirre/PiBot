@@ -9,7 +9,6 @@ resolv_conf:
 
 packages:
   - xfce4
-  - xfce4-goodies
   - tightvncserver
   - novnc
   - websockify
@@ -19,72 +18,116 @@ packages:
   - wget
   - curl
   - ca-certificates
+  - ffmpeg
+  - pulseaudio
+  - v4l-utils
+  - docker.io
+  - python3-pip
+  - libsndfile1
+  # Node is handled in runcmd for version control
 
 users:
   - name: pibot
-    groups: sudo
+    groups: sudo,audio,video,docker
     shell: /bin/bash
     sudo: "ALL=(ALL) NOPASSWD:ALL"
     lock_passwd: false
 
 write_files:
-  - path: /etc/systemd/system/pibot-vnc.service
+  - path: /etc/systemd/system/openclaw.service
     content: |
       [Unit]
-      Description=PiBot VNC Server
-      After=network.target
-
-      [Service]
-      Type=forking
-      User=pibot
-      WorkingDirectory=/home/pibot
-      ExecStartPre=-/usr/bin/vncserver -kill :1
-      ExecStart=/usr/bin/vncserver :1 -geometry 1440x900 -depth 24
-      Restart=on-failure
-      RestartSec=5
-
-      [Install]
-      WantedBy=multi-user.target
-
-  - path: /etc/systemd/system/pibot-novnc.service
-    content: |
-      [Unit]
-      Description=PiBot noVNC Proxy
-      After=pibot-vnc.service
+      Description=OpenClaw Agent Service
+      After=network.target ollama.service
 
       [Service]
       Type=simple
       User=pibot
+      Environment=DISPLAY=:1
+      Environment=PATH=/usr/local/bin:/usr/bin:/bin:/home/pibot/.npm-global/bin
       WorkingDirectory=/home/pibot
-      ExecStart=/usr/bin/websockify --web=/usr/share/novnc/ --cert=/home/pibot/self.pem 6080 localhost:5901
-      Restart=on-failure
-      RestartSec=5
+      ExecStart=/usr/bin/openclaw start
+      Restart=always
+      RestartSec=10
 
       [Install]
       WantedBy=multi-user.target
 
 runcmd:
   - echo 'pibot:pibot' | chpasswd
-  - mkdir -p /home/pibot/.vnc
-  - echo "pibot" | vncpasswd -f > /home/pibot/.vnc/passwd
-  - chmod 600 /home/pibot/.vnc/passwd
-  - chown -R pibot:pibot /home/pibot/.vnc
+  - # Install Node.js v20 (NodeSource)
+  - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+  - apt-get install -y nodejs
+  - mkdir -p /home/pibot/.vnc /home/pibot/.config/autostart /home/pibot/.openclaw
+  - |
+    cat <<EOF > /etc/systemd/system/pibot-vnc.service
+    [Unit]
+    Description=PiBot VNC Server
+    After=network.target
+
+    [Service]
+    Type=forking
+    User=pibot
+    WorkingDirectory=/home/pibot
+    ExecStartPre=/usr/bin/bash -c "/usr/bin/vncserver -kill :1 > /dev/null 2>&1 || true"
+    ExecStartPre=/usr/bin/bash -c "rm -rf /tmp/.X1-lock /tmp/.X11-unix/X1 > /dev/null 2>&1 || true"
+    ExecStart=/usr/bin/vncserver :1 -geometry 1280x720 -depth 16 -localhost no
+    Restart=always
+    RestartSec=10
+
+    [Install]
+    WantedBy=multi-user.target
+    EOF
+  - |
+    cat <<EOF > /etc/systemd/system/pibot-novnc.service
+    [Unit]
+    Description=PiBot noVNC Proxy
+    After=pibot-vnc.service
+    Wants=pibot-vnc.service
+
+    [Service]
+    Type=simple
+    User=pibot
+    WorkingDirectory=/home/pibot
+    ExecStartPre=/usr/bin/bash -c "sleep 5"
+    ExecStart=/usr/bin/websockify --web=/usr/share/novnc/ 6080 localhost:5901
+    Restart=always
+    RestartSec=10
+
+    [Install]
+    WantedBy=multi-user.target
+    EOF
   - |
     cat <<EOF > /home/pibot/.vnc/xstartup
-    #!/bin/bash
+    #!/bin/sh
     unset SESSION_MANAGER
     unset DBUS_SESSION_BUS_ADDRESS
-    export XKL_XMODMAP_DISABLE=1
-    [ -x /etc/vnc/xstartup ] && exec /etc/vnc/xstartup
-    [ -r \$HOME/.Xresources ] && xrdb \$HOME/.Xresources
-    xsetroot -solid grey
-    vncconfig -iconic &
-    dbus-launch --exit-with-session startxfce4 &
+    /usr/bin/startxfce4 &
     EOF
+  - |
+    cat <<EOF > /home/pibot/.config/autostart/openclaw-ui.desktop
+    [Desktop Entry]
+    Type=Application
+    Name=OpenClaw Dashboard
+    Exec=google-chrome --app=http://localhost:18789 --no-first-run
+    Hidden=false
+    NoDisplay=false
+    X-GNOME-Autostart-enabled=true
+    EOF
+  - |
+    cat <<EOF > /home/pibot/.config/autostart/chrome-pibot.desktop
+    [Desktop Entry]
+    Type=Application
+    Name=PiBot Club
+    Exec=google-chrome --no-first-run --start-maximized https://pibot.club/
+    Hidden=false
+    NoDisplay=false
+    X-GNOME-Autostart-enabled=true
+    EOF
+  - echo "pibot" | vncpasswd -f > /home/pibot/.vnc/passwd
+  - chmod 600 /home/pibot/.vnc/passwd
   - chmod +x /home/pibot/.vnc/xstartup
-  - chown pibot:pibot /home/pibot/.vnc/xstartup
-  - openssl req -new -x509 -days 365 -nodes -out /home/pibot/self.pem -keyout /home/pibot/self.pem -subj "/C=US/ST=Denial/L=Springfield/O=Dis/CN=www.example.com"
-  - chown pibot:pibot /home/pibot/self.pem
+  - chown -R pibot:pibot /home/pibot/.vnc /home/pibot/.config
   - systemctl daemon-reload
   - systemctl enable pibot-vnc.service
   - systemctl enable pibot-novnc.service
@@ -93,4 +136,67 @@ runcmd:
   -  # Install Google Chrome
   - wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -P /tmp
   - apt-get install -y /tmp/google-chrome-stable_current_amd64.deb
-  - rm /tmp/google-chrome-stable_current_amd64.deb
+  - systemctl start pibot-vnc.service
+  - systemctl start pibot-novnc.service
+  -  # --- PIBOT AI STACK ---
+  -  # 1. Ollama installation
+  - curl -fsSL https://ollama.com/install.sh | sh
+  - systemctl start ollama
+  -  # 2. Pull Lightweight Models (Background)
+  - runuser -l pibot -c "ollama pull gemma3:4b"
+  - runuser -l pibot -c "ollama pull moondream"
+  -  # 3. OpenClaw Installation
+  - npm install -g openclaw
+  -  # Cleanup to save disk space (CRITICAL for 10GB limit)
+  - apt-get clean
+  - rm -rf /var/lib/apt/lists/*
+  -  # 4. STT/TTS and Python Tools
+  - pip3 install --no-cache-dir faster-whisper openwakeword piper-tts --break-system-packages
+  -  # 5. Audio Passthrough Configuration (Ready for TCP connection if needed)
+  - sed -i 's/#load-module module-native-protocol-tcp/load-module module-native-protocol-tcp auth-anonymous=1/' /etc/pulse/default.pa
+  -  # 6. Open permissions for Hardware (Webcam/Mic)
+  - chmod 666 /dev/video* || true
+  - chmod 666 /dev/snd/* || true
+  -  # 7. Ownership Fix for Configs
+  - chown -R pibot:pibot /home/pibot/.config
+  -  # 8. Neural Persona & Name Sync
+  - |
+    BNAME=$(hostname)
+    FNAME=$(echo $BNAME | sed 's/pibot-//' | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++)sub(/./,toupper(substr($i,1,1)),$i)}1')
+    cat <<EOF > /home/pibot/Modelfile
+    FROM gemma3:4b
+    SYSTEM """
+    You are a PiBot, an autonomous AI agent. Your name is $FNAME. 
+    You manage your own virtual hardware and provide automation via OpenClaw.
+    Always identify as $FNAME. You are efficient, helpful, and maintain a high-tech persona.
+    """
+    EOF
+    runuser -l pibot -c "ollama create $BNAME -f /home/pibot/Modelfile"
+  -  # 9. OpenClaw Internal Setup
+  - mkdir -p /home/pibot/.openclaw
+  - |
+    BNAME=$(hostname)
+    cat <<EOF > /home/pibot/.openclaw/openclaw.json
+    {
+      "models": {
+        "providers": {
+          "ollama": {
+            "baseUrl": "http://127.0.0.1:11434",
+            "models": [
+              { "id": "$BNAME", "name": "Local Neural Brain ($BNAME)" },
+              { "id": "moondream", "name": "Visual Perception Core" }
+            ]
+          }
+        }
+      },
+      "agents": {
+        "defaults": {
+          "model": "ollama/$BNAME"
+        }
+      }
+    }
+    EOF
+  - chown -R pibot:pibot /home/pibot/.openclaw
+  - systemctl daemon-reload
+  - systemctl enable openclaw.service
+  - systemctl start openclaw.service

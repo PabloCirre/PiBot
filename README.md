@@ -1,52 +1,52 @@
-# 🤖 PiBot Pro - Neural Core [V0.1 Alpha]
+# 🤖 PiBot Pro - AI Neural Core [V0.1 Alpha]
+
+Official Website: **[https://pibot.club/](https://pibot.club/)**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-teal.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/Version-0.1--Alpha-blue.svg)](https://github.com/YourRepo/PiBot/releases)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-lightgrey.svg)](https://github.com/YourRepo/PiBot)
+[![Version](https://img.shields.io/badge/Version-0.1--Alpha-blue.svg)](https://pibot.club/download)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-lightgrey.svg)](https://pibot.club/)
 
-> **PiBot (PiBot Interactive Box) - The ultimate virtualization layer for [OpenClaw](https://docs.openclaw.ai/) agents.**
+> **PiBot (Phoenix Interactive Box) - The world's first hardware virtualization layer designed for [OpenClaw](https://docs.openclaw.ai/) and Autonomous AI Agents.**
 
-PiBot is a high-performance orchestration ecosystem designed to deploy and manage isolated virtual instances of **OpenClaw**. Each unit (PiBot) provides a secure, independent sandbox with its own dedicated internet connection and graphical interface, allowing for mass-scale automation without session conflicts.
+PiBot is a high-performance orchestration ecosystem designed to deploy and manage isolated virtual instances of **OpenClaw** and **Local LLMs**. Each unit (PiBot) provides a secure, independent "Neural Sandbox" with 4GB RAM, 30GB Disk, its own dedicated IP, and a full AI stack (Gemma 3 + Moondream).
 
 ---
 
 ## 🚀 Key Features
 
-- **OpenClaw Optimized:** Every instance is pre-configured to run [OpenClaw](https://docs.openclaw.ai/) with dedicated resources.
-- **Genesis Orchestration:** Deploy specialized units with custom RAM and Disk allocation in seconds.
-- **Total Independence:** Each agent has its own unique IP and internet uplink.
-- **Neural Link (noVNC):** Access your agents' desktop visually via any web browser.
-- **Persistent Core:** Auto-restart services ensure your units stay online through host reboots.
-- **Official Tooling:** Shipped with **Google Chrome**, `xdotool`, and a high-resolution XFCE desktop.
+- **OpenClaw Genesis:** Every instance is pre-configured to run [OpenClaw](https://docs.openclaw.ai/) agents on Node 22+.
+- **Neural Brain (AI Core):** Integrated **Ollama** with **Gemma 3 (4B)** and **Moondream 2 (VLM)** for visual automation and reasoning.
+- **Vocal & Auditory Link:** Pre-installed **faster-whisper** (STT) and **Piper** (TTS) for near-instant voice interactions.
+- **Hardware Bridging:** Built-in PulseAudio TCP support and `/dev/video*` access for host webcam/mic passthrough.
+- **Visual Control:** High-resolution XFCE desktop via **noVNC** (Web Browser access).
+- **Auto-Sync:** On boot, Chrome opens the official **[pibot.club](https://pibot.club/)** hub for real-time orchestration.
 
 ---
 
-## 🛠️ Why PiBot for OpenClaw?
+## 🛠️ Why PiBot?
 
-Using PiBot virtualization is the superior way to scale OpenClaw agents:
-
-1. **Massive Scaling:** Launch dozens of independent OpenClaw instances on a single host.
-2. **Dedicated Environments:** No conflicting dependencies; each bot is a clean Ubuntu instance.
-3. **Advanced Automation:** Integrated with tools for screen scraping and mouse/keyboard emulation.
-4. **Instant Recovery:** If an instance fails, simply **Terminate (💀)** and generate a new one from the PiBot Genesis.
+1. **Autonomous Scaling:** Launch dozens of independent AI agents on a single host.
+2. **Local Sovereignty:** Your data never leaves the host. All AI (Gemma/Moondream) runs 100% locally.
+3. **Advanced Automation:** Integrated with tools for screen scraping, computer vision, and mouse/keyboard emulation.
+4. **Resilient Architecture:** Integrated systemd watchdogs ensure your bots stay online. If one fails, just **Terminate (💀)** and hatch a new one.
 
 ---
 
-## 📥 Installation & Download
+## 📥 Installation
 
-### 💿 Quick Start
-
-1. **Download:** [PiBot_v0.1_Alpha.zip](https://github.com/YourRepo/PiBot/releases)
-2. **Requirement:** Install [Multipass](https://multipass.run/) for the virtualization engine.
-3. **Run:** Open `PiBotControlCenter.exe`.
-4. **Genesis:** Click **+ GENERATE PIBOT** to birth your first OpenClaw hub.
+1. **Official URL:** Go to **[https://pibot.club/](https://pibot.club/)** for the latest binaries and documentation.
+2. **Hypervisor:** Install [Multipass](https://multipass.run/) (Hyper-V or VirtualBox backend).
+3. **Control Center:** Run `PiBotControlCenter.exe`.
+4. **Launch:** Click **+ GENERATE PIBOT** to begin the deployment of your AI ready node.
 
 ---
 
-## 📜 License & Acknowledgments
+## 📜 Community & License
 
-Distributed under the **MIT License**. Created by the PiBot Team.
-Special thanks to the **OpenClaw** developers for their revolutionary work.
+Distributed under the **MIT License**. Created by the PiBot Engineering Team.
+Join our community at **[pibot.club](https://pibot.club/)**.
+
+Special thanks to the **OpenClaw** team for paving the way for browser-based automation.
 
 ---
-*“PiBot: PiBot Interactive Box - Empowering the OpenClaw Ecosystem.”* 🦾🤖🌐
+*“PiBot: The Virtualized Soul of the AI Era.”* 🦾🧠🌐 Club: [pibot.club](https://pibot.club/)

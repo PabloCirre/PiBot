@@ -144,16 +144,34 @@ namespace PiBotWebBackend {
                     if (string.IsNullOrWhiteSpace(line) || line.StartsWith("Name")) continue;
                     var parts = line.Split(',');
                     if (parts.Length >= 3 && parts[0].Contains("pibot")) {
+                        string bName = parts[0].Trim();
+                        string state = parts[1].Trim();
                         list.Add(new {
-                            name = parts[0].Trim(),
-                            status = parts[1].Trim(), // Running / Stopped
+                            name = bName,
+                            status = state,
                             ip = parts[2].Trim(),
-                            ram = "1G" // Hardcoded estimate for UI
+                            ram = "1G",
+                            uptime = state == "Running" ? GetUptime(bName) : "0m"
                         });
                     }
                 }
             } catch { }
             return list;
+        }
+
+        static string GetUptime(string name) {
+            try {
+                Process p = new Process();
+                p.StartInfo.FileName = MULTIPASS_PATH;
+                p.StartInfo.Arguments = "exec " + name + " -- uptime -p";
+                p.StartInfo.RedirectStandardOutput = true;
+                p.StartInfo.UseShellExecute = false;
+                p.StartInfo.CreateNoWindow = true;
+                p.Start();
+                string output = p.StandardOutput.ReadToEnd().Trim();
+                p.WaitForExit();
+                return output.Replace("up ", "").Replace(" hours", "h").Replace(" hour", "h").Replace(" minutes", "m").Replace(" minute", "m").Replace(",", "");
+            } catch { return "0m"; }
         }
 
         static void RunMultipass(string args) {

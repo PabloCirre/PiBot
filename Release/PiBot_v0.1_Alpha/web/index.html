@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PIBOT Control Center - Neural Core</title>
+    <link rel="icon" type="image/png" href="assets/pibot_icon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;600;900&display=swap');
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0c0d11;
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .glass-panel {
+            background: rgba(20, 22, 28, 0.6);
+            backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+        }
+
+        #console-container {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #console-container.collapsed {
+            height: 48px;
+        }
+
+        .toggle-icon {
+            transition: transform 0.3s;
+        }
+
+        .collapsed .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 184, 187, 0.2);
+            border-radius: 10px;
+        }
+
+        .bot-icon-glow {
+            filter: drop-shadow(0 0 12px rgba(45, 212, 191, 0.4));
+        }
+
+        /* Premium Glossy Buttons */
+        .action-btn {
+            padding: 0.6rem 0.8rem;
+            border-radius: 14px;
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            border: 1px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .action-btn::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .btn-start {
+            background: rgba(45, 212, 191, 0.15);
+            border-color: rgba(45, 212, 191, 0.2);
+            color: #2dd4bf;
+        }
+
+        .btn-start:hover {
+            background: rgba(45, 212, 191, 0.25);
+            border-color: rgba(45, 212, 191, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .btn-stop {
+            background: rgba(234, 179, 8, 0.15);
+            border-color: rgba(234, 179, 8, 0.2);
+            color: #eab308;
+        }
+
+        .btn-stop:hover {
+            background: rgba(234, 179, 8, 0.25);
+            border-color: rgba(234, 179, 8, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .btn-kill {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+            opacity: 0.6;
+        }
+
+        .btn-kill:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.3);
+            opacity: 1;
+            transform: translateY(-2px);
+        }
+
+        .btn-connect {
+            background: rgba(59, 130, 246, 0.15);
+            border-color: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+
+        .btn-connect:hover {
+            background: rgba(59, 130, 246, 0.25);
+            border-color: rgba(59, 130, 246, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .action-btn:active {
+            transform: scale(0.95) translateY(0);
+        }
+
+        @keyframes breath {
+
+            0%,
+            100% {
+                transform: scale(1);
+                filter: brightness(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+                filter: brightness(1.2);
+            }
+        }
+    </style>
+</head>
+
+<body class="flex flex-col h-screen">
+
+    <!-- Header -->
+    <header class="h-20 glass-panel m-4 flex items-center justify-between px-8 shadow-2xl z-40">
+        <div class="flex items-center gap-4">
+            <img src="assets/pibot_icon.png" class="h-10 w-10 drop-shadow-lg">
+            <h1 class="text-2xl font-black tracking-tighter text-white italic">PIBOT <span
+                    class="text-teal-400 not-italic">PRO</span></h1>
+        </div>
+
+        <div class="flex gap-6 items-center">
+            <div class="flex gap-4">
+                <div class="hidden md:flex px-4 py-2 bg-white/5 rounded-xl border border-white/5 items-center gap-2">
+                    <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest">SYSTEM MONITOR</span>
+                    <span id="ram-meter" class="text-xs text-teal-400 font-bold">Connecting...</span>
+                </div>
+                <div class="px-4 py-2 bg-white/5 rounded-xl border border-white/5 flex items-center gap-2">
+                    <span id="bot-count" class="text-xs text-purple-400 font-bold">0 ACTIVE UNITS</span>
+                </div>
+            </div>
+
+            <button onclick="showCreationModal()"
+                class="bg-teal-500 hover:bg-white text-black font-black py-3 px-8 rounded-full shadow-[0_10px_30px_rgba(45,212,191,0.2)] transition-all transform hover:scale-105 active:scale-95 text-xs tracking-widest">
+                + GENERATE PIBOT
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-y-auto px-4 pb-4 relative">
+        <div id="empty-state" class="hidden flex flex-col items-center justify-center py-20">
+            <!-- Genesis Egg Animation -->
+            <div class="relative w-48 h-64 mb-10 group cursor-pointer" onclick="showCreationModal()">
+                <!-- The Glow -->
+                <div class="absolute inset-0 bg-teal-500/20 blur-[100px] rounded-full animate-pulse"></div>
+                <!-- The Egg Surface -->
+                <div
+                    class="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md rounded-[50%_50%_50%_50%_/_60%_60%_40%_40%] border border-white/20 shadow-[0_0_50px_rgba(255,255,255,0.05)] flex items-center justify-center overflow-hidden animate-[breath_4s_ease-in-out_infinite]">
+                    <img src="assets/pibot_icon.png"
+                        class="w-16 h-16 opacity-40 group-hover:opacity-100 transition-opacity duration-500">
+                    <!-- DNA Strands decoration -->
+                    <div class="absolute inset-0 opacity-10 pointer-events-none">
+                        <div class="absolute top-0 left-1/2 w-px h-full bg-white/50 rotate-45"></div>
+                        <div class="absolute top-0 left-1/2 w-px h-full bg-white/50 -rotate-45"></div>
+                    </div>
+                </div>
+            </div>
+            <p class="text-xs uppercase font-black tracking-[1em] text-teal-400 mb-2">Genesis System Ready</p>
+            <p class="text-[10px] text-gray-500 uppercase tracking-widest">Hatch your first PiBot to begin automation
+            </p>
+        </div>
+
+        <div id="bot-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-2">
+            <!-- Bot Cards will be dynamically injected -->
+        </div>
+    </main>
+
+    <!-- GENESIS MODAL -->
+    <div id="creation-modal"
+        class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-3xl transition-all duration-500 opacity-0 pointer-events-none">
+        <div class="relative w-full max-w-4xl transform scale-95 transition-all duration-500" id="modal-content">
+            <button onclick="hideCreationModal()"
+                class="absolute -top-12 right-0 text-gray-500 hover:text-white transition-colors flex items-center gap-2 text-[10px] font-black tracking-widest">
+                CLOSE MODAL <span
+                    class="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center bg-white/5">✕</span>
+            </button>
+            <div class="glass-panel p-1 border border-white/10 shadow-2xl overflow-hidden">
+                <div class="flex flex-col md:flex-row bg-white/[0.01]">
+                    <!-- Left: Genesis -->
+                    <div
+                        class="md:w-1/2 p-12 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-white/5 relative bg-gradient-to-br from-teal-500/10 to-transparent">
+                        <img src="assets/pibot_icon.png" class="w-24 h-24 mb-8 drop-shadow-2xl">
+                        <h1 class="text-4xl font-black italic tracking-tighter mb-2 uppercase">Core Genesis</h1>
+                        <p
+                            class="text-[10px] text-teal-400 font-bold tracking-[0.4em] uppercase opacity-80 mb-10 text-center">
+                            Inaugurate new neural instance</p>
+                        <button onclick="launchBot()"
+                            class="px-12 py-5 bg-teal-500 text-black font-black text-xs tracking-widest rounded-full hover:bg-white active:scale-95 transition-all shadow-xl">RAPID
+                            BIRTH</button>
+                        <p class="text-[9px] text-gray-500 mt-6 font-medium italic">Auto-Configuration: 4GB RAM / 30GB
+                            HDD</p>
+                    </div>
+                    <!-- Right: Metabolic DNA -->
+                    <div class="md:w-1/2 p-12 bg-black/40 flex flex-col justify-center">
+                        <h3 class="text-xs font-black text-teal-400 uppercase tracking-widest mb-2">Metabolic Design
+                        </h3>
+                        <p class="text-[11px] text-gray-400 mb-10 leading-relaxed">Customize the silicon resources for
+                            the neural core development.</p>
+                        <div class="space-y-10">
+                            <div>
+                                <div class="flex justify-between items-end mb-3">
+                                    <label
+                                        class="text-[10px] font-bold text-gray-300 uppercase tracking-widest">Cognitive
+                                        Buffer (RAM)</label>
+                                    <div class="flex items-baseline gap-1"><span id="ram-val"
+                                            class="text-2xl font-black text-white">4096</span><span
+                                            class="text-[10px] text-gray-600 font-bold uppercase">MB</span></div>
+                                </div>
+                                <input type="range" id="ram-slider" min="512" max="16384" step="256" value="4096"
+                                    oninput="updateRange('ram')"
+                                    class="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-teal-400">
+                            </div>
+                            <div>
+                                <div class="flex justify-between items-end mb-3">
+                                    <label class="text-[10px] font-bold text-gray-300 uppercase tracking-widest">Memory
+                                        Storage (HDD)</label>
+                                    <div class="flex items-baseline gap-1"><span id="disk-val"
+                                            class="text-2xl font-black text-white">30</span><span
+                                            class="text-[10px] text-gray-600 font-bold uppercase">GB</span></div>
+                                </div>
+                                <input type="range" id="disk-slider" min="10" max="200" step="5" value="30"
+                                    oninput="updateRange('disk')"
+                                    class="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                            </div>
+                        </div>
+                        <button onclick="launchCustom()"
+                            class="mt-12 w-full py-5 rounded-xl border border-teal-500/20 bg-teal-500/10 hover:bg-teal-500/20 text-white font-black text-[10px] tracking-[0.3em] uppercase transition-all shadow-lg active:scale-[0.98]">INITIALIZE
+                            SPECIALIZED UNIT</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Console Log Drawer -->
+    <div id="console-container"
+        class="glass-panel mx-4 mb-4 flex flex-col h-56 overflow-hidden bg-black/90 relative collapsed shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
+        <div onclick="toggleConsole()"
+            class="flex items-center justify-between px-6 py-4 cursor-pointer hover:bg-white/5 border-b border-white/5 shrink-0">
+            <div class="flex items-center gap-3">
+                <span class="text-[10px] font-black text-teal-400 tracking-[0.4em] uppercase italic">System
+                    Telemetry</span>
+                <span id="log-pulse"
+                    class="w-2.5 h-2.5 bg-teal-500 rounded-full animate-pulse shadow-[0_0_15px_#00b8bb]"></span>
+            </div>
+            <div class="flex items-center gap-6">
+                <span id="last-log-peek"
+                    class="text-[10px] text-gray-500 italic truncate max-w-sm font-medium">Synchronizing with neural
+                    framework...</span>
+                <div class="toggle-icon text-teal-400 text-xs">▼</div>
+            </div>
+        </div>
+        <div class="flex-1 p-6 font-mono text-[10px] overflow-y-auto text-teal-400/80 leading-relaxed scrollbar-hide"
+            id="console-log">
+            <p class="opacity-30 italic">Establishing data uplink...</p>
+        </div>
+
+        <!-- DNA Manifest Egg (Mini Egg) -->
+        <div class="absolute bottom-4 right-4 group cursor-pointer" onclick="showDnaManifest()">
+            <div
+                class="w-8 h-10 bg-white/10 hover:bg-white/20 border border-white/20 rounded-[50%_50%_50%_50%_/_60%_60%_40%_40%] transition-all flex flex-col items-center justify-center shadow-lg">
+                <span class="text-[6px] font-black text-white bg-orange-500 px-1 rounded-sm mb-1">⚡DNA</span>
+                <div class="w-1.5 h-1.5 bg-teal-400 rounded-full animate-pulse"></div>
+            </div>
+            <div
+                class="absolute bottom-full right-0 mb-2 hidden group-hover:block bg-black/90 border border-white/10 p-2 rounded text-[8px] whitespace-nowrap text-gray-400">
+                Genetic Manifest v4.7
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
